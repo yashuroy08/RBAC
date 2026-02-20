@@ -1,0 +1,200 @@
+.risk-engine-card {
+    padding: 1.5rem;
+    margin-top: 1.5rem;
+    border: 1px dashed var(--border-glow);
+}
+
+.engine-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: flex-start;
+    margin-bottom: 2rem;
+}
+
+.engine-title {
+    display: flex;
+    gap: 1rem;
+    align-items: center;
+}
+
+.engine-icon {
+    font-size: 2rem;
+    color: var(--primary);
+}
+
+.engine-title h3 {
+    font-size: 1.25rem;
+    margin: 0;
+}
+
+.engine-title p {
+    font-size: 0.85rem;
+    color: var(--text-muted);
+    margin: 0;
+}
+
+.policy-badge {
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary);
+    padding: 0.4rem 0.8rem;
+    border-radius: 8px;
+    font-size: 0.75rem;
+    font-weight: 600;
+    border: 1px solid var(--border-glow);
+}
+
+.formula-section {
+    background: rgba(0, 0, 0, 0.2);
+    padding: 1.5rem;
+    border-radius: 12px;
+    margin-bottom: 2rem;
+}
+
+.formula-label {
+    font-size: 0.75rem;
+    text-transform: uppercase;
+    color: var(--text-muted);
+    margin-bottom: 1rem;
+    letter-spacing: 1px;
+}
+
+.formula-grid {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 1.5rem;
+}
+
+.formula-item {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.formula-item .val {
+    font-size: 1.5rem;
+    font-weight: 700;
+}
+
+.formula-item .lbl {
+    font-size: 0.7rem;
+    color: var(--text-muted);
+}
+
+.formula-operator {
+    font-size: 1.25rem;
+    color: var(--text-muted);
+    font-weight: 300;
+}
+
+.formula-result {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 0.5rem 1rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+}
+
+.formula-result .val {
+    font-size: 2rem;
+    font-weight: 800;
+}
+
+/* Viz Section */
+.threshold-viz {
+    margin-bottom: 2rem;
+}
+
+.viz-labels {
+    display: flex;
+    justify-content: space-between;
+    font-size: 0.85rem;
+    margin-bottom: 0.75rem;
+    color: var(--text-muted);
+}
+
+.viz-bar-container {
+    position: relative;
+    padding: 10px 0;
+}
+
+.viz-bar-bg {
+    height: 12px;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 6px;
+    position: relative;
+    overflow: visible;
+}
+
+.viz-bar-fill {
+    height: 100%;
+    border-radius: 6px;
+    transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+
+.threshold-marker {
+    position: absolute;
+    top: -15px;
+    transform: translateX(-50%);
+    color: var(--danger);
+    font-size: 1.2rem;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+}
+
+.threshold-marker::after {
+    content: '';
+    width: 2px;
+    height: 30px;
+    background: var(--danger);
+    margin-top: 2px;
+}
+
+.viz-footer {
+    margin-top: 1rem;
+    font-size: 0.9rem;
+    text-align: center;
+    font-weight: 500;
+}
+
+.danger-text {
+    color: var(--danger);
+}
+
+.safe-text {
+    color: var(--success);
+}
+
+.engine-logic-desc {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 1rem;
+}
+
+.logic-item {
+    display: flex;
+    gap: 0.75rem;
+    align-items: center;
+    font-size: 0.85rem;
+    background: rgba(255, 255, 255, 0.03);
+    padding: 0.75rem;
+    border-radius: 8px;
+}
+
+.logic-icon {
+    color: var(--primary);
+    flex-shrink: 0;
+}
+
+@media (max-width: 768px) {
+    .formula-grid {
+        flex-wrap: wrap;
+        gap: 1rem;
+    }
+
+    .engine-logic-desc {
+        grid-template-columns: 1fr;
+    }
+}
