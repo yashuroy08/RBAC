@@ -42,7 +42,7 @@ public class AuthService {
      * @return Authenticated user principal
      * @throws RuntimeException if location validation fails for non-admin users
      */
-    public UserPrincipal authenticateUser(LoginRequest loginRequest, HttpServletRequest request) {
+    public AuthResult authenticateUser(LoginRequest loginRequest, HttpServletRequest request) {
         log.info("Authentication attempt for user: {}", loginRequest.getUsername());
 
         // Authenticate using Spring Security (validates username/password first)
@@ -97,13 +97,23 @@ public class AuthService {
         String deviceId = generateDeviceId(request);
         String ipAddress = getClientIpAddress(request);
 
-        riskEvaluatorService.registerSession(
+        com.project.rbac.dto.RiskEvaluationResponse riskResponse = riskEvaluatorService.registerSession(
                 userPrincipal.getId(),
                 sessionId,
                 deviceId,
                 ipAddress);
 
-        return userPrincipal;
+        return new AuthResult(userPrincipal, riskResponse);
+    }
+    
+    public static class AuthResult {
+        public final UserPrincipal userPrincipal;
+        public final com.project.rbac.dto.RiskEvaluationResponse riskResponse;
+        
+        public AuthResult(UserPrincipal userPrincipal, com.project.rbac.dto.RiskEvaluationResponse riskResponse) {
+            this.userPrincipal = userPrincipal;
+            this.riskResponse = riskResponse;
+        }
     }
 
     /**

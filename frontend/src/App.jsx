@@ -13,8 +13,8 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
     if (loading) {
         return (
-            <div className="loading-container">
-                <div className="spinner"></div>
+            <div className="min-h-screen bg-bg-deep flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
             </div>
         );
     }
@@ -36,8 +36,8 @@ function AppRoutes() {
 
     if (loading) {
         return (
-            <div className="loading-container">
-                <div className="spinner"></div>
+            <div className="min-h-screen bg-bg-deep flex items-center justify-center">
+                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
             </div>
         );
     }

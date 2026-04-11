@@ -83,7 +83,9 @@ public class AuthController {
         try {
             log.info("Login request for username: {}", loginRequest.getUsername());
 
-            UserPrincipal userPrincipal = authService.authenticateUser(loginRequest, request);
+            AuthService.AuthResult authResult = authService.authenticateUser(loginRequest, request);
+            UserPrincipal userPrincipal = authResult.userPrincipal;
+            com.project.rbac.dto.RiskEvaluationResponse riskResponse = authResult.riskResponse;
 
             // Get session ID
             String sessionId = request.getSession().getId();
@@ -91,8 +93,13 @@ public class AuthController {
             log.info("Login successful for user: {}, Session ID: {}",
                     userPrincipal.getUsername(), sessionId);
 
+            String message = "Login successful";
+            if (riskResponse != null && riskResponse.isThresholdExceeded()) {
+                message = "Warning: Security limits exceeded. Other persons or previous sessions logged in the account have been logged out.";
+            }
+
             return ResponseEntity.ok(ApiResponse.success(
-                    "Login successful",
+                    message,
                     new LoginResponse(
                             userPrincipal.getId(),
                             userPrincipal.getUsername(),
@@ -100,6 +107,21 @@ public class AuthController {
                             sessionId,
                             userPrincipal.getAuthorities().toString())));
 
+        } catch (org.springframework.security.authentication.LockedException e) {
+            log.warn("Login denied: Account locked for user: {}", loginRequest.getUsername());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Account is locked. Please contact support."));
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            log.warn("Login denied: Account disabled for user: {}", loginRequest.getUsername());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Account is disabled. Please contact an administrator."));
+        } catch (org.springframework.security.authentication.BadCredentialsException e) {
+            log.warn("Login error: Bad credentials for user: {}", loginRequest.getUsername());
+            return ResponseEntity
+                    .status(HttpStatus.UNAUTHORIZED)
+                    .body(ApiResponse.error("Invalid username or password"));
         } catch (RuntimeException e) {
             if ("LOGIN_LOCATION_DENIED".equals(e.getMessage())) {
                 log.warn("Login denied due to location restriction for user: {}", loginRequest.getUsername());

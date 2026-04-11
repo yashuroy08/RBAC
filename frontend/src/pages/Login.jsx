@@ -2,66 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import './Auth.css';
-
-/* ── Inline SVG Icons (matching reference design) ── */
-const UserIcon = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2" />
-        <circle cx="12" cy="7" r="4" />
-    </svg>
-);
-
-const LockIcon = () => (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <rect x="3" y="11" width="18" height="11" rx="2" ry="2" />
-        <path d="M7 11V7a5 5 0 0 1 10 0v4" />
-    </svg>
-);
-
-const EyeIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
-        <circle cx="12" cy="12" r="3" />
-    </svg>
-);
-
-const EyeOffIcon = () => (
-    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94" />
-        <path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19" />
-        <path d="M14.12 14.12a3 3 0 1 1-4.24-4.24" />
-        <line x1="1" y1="1" x2="23" y2="23" />
-    </svg>
-);
-
-const ShieldIcon = () => (
-    <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-    </svg>
-);
-
-const ArrowRightIcon = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <line x1="5" y1="12" x2="19" y2="12" />
-        <polyline points="12 5 19 12 12 19" />
-    </svg>
-);
-
-const AlertIcon = () => (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <circle cx="12" cy="12" r="10" />
-        <line x1="12" y1="8" x2="12" y2="12" />
-        <line x1="12" y1="16" x2="12.01" y2="16" />
-    </svg>
-);
-
-const MapPinIcon = () => (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M21 10c0 7-9 13-9 13s-9-6-9-13a9 9 0 0 1 18 0z" />
-        <circle cx="12" cy="10" r="3" />
-    </svg>
-);
+import { User, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, MapPin } from 'lucide-react';
 
 const Login = () => {
     const navigate = useNavigate();
@@ -85,7 +26,7 @@ const Login = () => {
         try {
             const response = await login(formData);
             if (response && response.success) {
-                navigate('/dashboard');
+                navigate('/dashboard', { state: { loginMessage: response.message } });
             } else {
                 if (response?.message) setError(response.message);
                 else navigate('/dashboard');
@@ -109,35 +50,36 @@ const Login = () => {
     };
 
     return (
-        <div className="auth-page">
-            <div className="auth-bg-glow"></div>
-
+        <div className="min-h-screen flex items-center justify-center p-4 relative">
+            {/* Background ambient glow */}
+            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10" />
+            
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
                 transition={{ duration: 0.5 }}
-                className="auth-container"
+                className="glass-card w-full max-w-md p-8 relative z-10"
             >
-                <div className="auth-header">
-                    <div className="logo-container">
-                        <ShieldIcon />
+                <div className="text-center mb-8">
+                    <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 shadow-[0_0_20px_var(--color-primary-glow)]">
+                        <ShieldCheck size={32} />
                     </div>
-                    <h1>Secure Access</h1>
-                    <p>RBAC Risk Evaluation System</p>
+                    <h1 className="text-3xl font-semibold text-light-text tracking-tight mb-2">Secure Access</h1>
+                    <p className="text-text-muted">RBAC Risk Evaluation System</p>
                 </div>
 
-                <form onSubmit={handleSubmit} className="auth-form">
+                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
                     {error && (
                         <motion.div
                             initial={{ opacity: 0, x: -10 }}
                             animate={{ opacity: 1, x: 0 }}
-                            className={`error-message ${locationError ? 'location-error' : ''}`}
+                            className={`p-4 rounded-xl flex items-start gap-3 text-sm ${locationError ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-red-500/10 border border-red-500/20 text-red-500'}`}
                         >
-                            {locationError ? <MapPinIcon /> : <AlertIcon />}
-                            <div className="error-content">
-                                <span>{error}</span>
+                            {locationError ? <MapPin size={18} className="mt-0.5 shrink-0" /> : <AlertCircle size={18} className="mt-0.5 shrink-0" />}
+                            <div className="flex flex-col">
+                                <span className="font-medium">{error}</span>
                                 {locationError && (
-                                    <span className="error-hint">
+                                    <span className="text-amber-500/80 mt-1">
                                         Your current location is outside the authorized zone. Contact your administrator.
                                     </span>
                                 )}
@@ -145,10 +87,12 @@ const Login = () => {
                         </motion.div>
                     )}
 
-                    <div className="input-group">
-                        <label htmlFor="username">Username</label>
-                        <div className="input-wrapper">
-                            <span className="input-icon"><UserIcon /></span>
+                    <div>
+                        <label htmlFor="username" className="input-label">Username</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-focus-within:text-primary">
+                                <User size={20} />
+                            </span>
                             <input
                                 type="text"
                                 id="username"
@@ -157,14 +101,17 @@ const Login = () => {
                                 value={formData.username}
                                 onChange={handleChange}
                                 required
+                                className="input-field input-field-with-icon peer"
                             />
                         </div>
                     </div>
 
-                    <div className="input-group">
-                        <label htmlFor="password">Password</label>
-                        <div className="input-wrapper">
-                            <span className="input-icon"><LockIcon /></span>
+                    <div>
+                        <label htmlFor="password" className="input-label">Password</label>
+                        <div className="relative">
+                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-focus-within:text-primary">
+                                <Lock size={20} />
+                            </span>
                             <input
                                 type={showPassword ? 'text' : 'password'}
                                 id="password"
@@ -173,36 +120,45 @@ const Login = () => {
                                 value={formData.password}
                                 onChange={handleChange}
                                 required
+                                className="input-field input-field-with-icon pr-12 peer"
                             />
                             <button
                                 type="button"
-                                className="password-toggle"
+                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
                                 onClick={() => setShowPassword(!showPassword)}
                                 tabIndex={-1}
                                 aria-label={showPassword ? 'Hide password' : 'Show password'}
                             >
-                                {showPassword ? <EyeIcon /> : <EyeOffIcon />}
+                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
                             </button>
                         </div>
                     </div>
 
-                    <div className="form-actions">
-                        <Link to="/reset-password" className="forgot-link">Forgot password?</Link>
+                    <div className="flex justify-end pt-1">
+                        <Link to="/reset-password" className="text-sm font-medium text-primary hover:text-indigo-400 transition-colors">
+                            Forgot password?
+                        </Link>
                     </div>
 
-                    <button type="submit" className="submit-btn" disabled={loading}>
-                        {loading ? <span className="loader"></span> : <>Sign In <ArrowRightIcon /></>}
+                    <button type="submit" className="btn btn-primary w-full mt-2" disabled={loading}>
+                        {loading ? (
+                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                        ) : (
+                            <>Sign In <ArrowRight size={18} /></>
+                        )}
                     </button>
 
-                    <div className="auth-footer">
+                    <div className="text-center mt-4 text-sm text-text-muted">
                         <span>New user? </span>
-                        <Link to="/register" className="register-link">Create account</Link>
+                        <Link to="/register" className="font-medium text-white hover:text-primary transition-colors">
+                            Create account
+                        </Link>
                     </div>
                 </form>
             </motion.div>
 
-            <div className="security-badge">
-                <MapPinIcon />
+            <div className="absolute bottom-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80 bg-emerald-400/10 px-4 py-2 rounded-full border border-emerald-400/20 backdrop-blur-sm">
+                <MapPin size={14} />
                 <span>Location-Verified Access</span>
             </div>
         </div>

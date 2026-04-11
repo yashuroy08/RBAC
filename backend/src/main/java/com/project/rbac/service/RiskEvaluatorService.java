@@ -61,7 +61,7 @@ public class RiskEvaluatorService {
      * @param ipAddress User IP address
      */
     @Transactional
-    public void registerSession(Long userId, String sessionId, String deviceId, String ipAddress) {
+    public RiskEvaluationResponse registerSession(Long userId, String sessionId, String deviceId, String ipAddress) {
         log.info("📢 New login attempt for User ID: {}. Session: {}", userId, sessionId);
 
         User user = userRepository.findById(userId)
@@ -84,7 +84,7 @@ public class RiskEvaluatorService {
 
         // Evaluate risk after registering new session, passing the current sessionId to
         // keep it alive
-        evaluateRisk(userId, sessionId);
+        return evaluateRisk(userId, sessionId);
     }
 
     /**
@@ -123,13 +123,13 @@ public class RiskEvaluatorService {
         response.setRiskScore(riskScore);
         response.setRiskLevel(determineRiskLevel(activeSessions, maxAllowedSessions));
 
-        // ACTION TRIGGER: Only invalidate sessions when the number of active sessions
-        // STRICTLY EXCEEDS the allowed maximum. The percentage threshold is used
-        // purely for visualization — not for the enforcement decision.
-        boolean limitExceeded = activeSessions > maxAllowedSessions;
+        // ACTION TRIGGER: Invalidate sessions when the risk score exceeds the threshold.
+        // The threshold is set in application.properties (default: 50%).
+        // This means: if activeSessions / maxAllowedSessions > threshold%, enforce.
+        boolean limitExceeded = riskScore > riskThreshold;
 
         if (limitExceeded) {
-            log.warn("🚨 SESSION LIMIT EXCEEDED! Active: {} > Max Allowed: {}", activeSessions, maxAllowedSessions);
+            log.warn("🚨 RISK THRESHOLD EXCEEDED! Score: {}% > Threshold: {}%", String.format("%.1f", riskScore), riskThreshold);
             log.warn("Kicking out oldest sessions, keeping current session: {}", currentSessionId);
 
             // INVALIDATE OTHER SESSIONS (Keep the newest/current one)
@@ -142,7 +142,7 @@ public class RiskEvaluatorService {
             // Log risk event
             logRiskEvent(user, activeSessions, riskScore, "OTHER_SESSIONS_INVALIDATED");
         } else {
-            log.info("✅ Sessions are within limit ({}/{}). No action needed.", activeSessions, maxAllowedSessions);
+            log.info("✅ Risk score {}% is within threshold {}%. No action needed.", String.format("%.1f", riskScore), riskThreshold);
             response.setThresholdExceeded(false);
             response.setAction("NONE");
             response.setMessage("Sessions are within acceptable limits.");

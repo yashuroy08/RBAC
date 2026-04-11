@@ -1,10 +1,9 @@
-import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { adminAPI } from '../services/api';
-import { FiMapPin, FiSave, FiToggleLeft, FiToggleRight, FiTrash2, FiRefreshCw, FiNavigation } from 'react-icons/fi';
+import { MapPin, Save, ToggleLeft, ToggleRight, Trash2, RefreshCw, Navigation, AlertTriangle, Shield, Search } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
-import './LocationSettings.css';
 
 // Fix default marker icons for Leaflet in Vite
 delete L.Icon.Default.prototype._getIconUrl;
@@ -20,6 +19,7 @@ const LocationSettings = () => {
     const [loading, setLoading] = useState(true);
     const [saving, setSaving] = useState(false);
     const [message, setMessage] = useState(null);
+    const [searchQuery, setSearchQuery] = useState('');
 
     const [formData, setFormData] = useState({
         centerLatitude: '',
@@ -257,28 +257,59 @@ const LocationSettings = () => {
         if (circleRef.current) { circleRef.current.remove(); circleRef.current = null; }
     };
 
+    const handleSearch = async (e) => {
+        e.preventDefault();
+        if (!searchQuery) return;
+        try {
+            const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(searchQuery)}`);
+            const data = await res.json();
+            if (data && data.length > 0) {
+                const lat = parseFloat(data[0].lat).toFixed(6);
+                const lon = parseFloat(data[0].lon).toFixed(6);
+                setFormData(prev => ({ ...prev, centerLatitude: lat, centerLongitude: lon }));
+                showMessage('Location found', 'success');
+                if (mapRef.current) {
+                    mapRef.current.setView([lat, lon], 12);
+                }
+            } else {
+                showMessage('Location not found', 'danger');
+            }
+        } catch (error) {
+            showMessage('Error searching location', 'danger');
+        }
+    };
+
     const showMessage = (text, type = 'success') => {
         setMessage({ text, type });
         setTimeout(() => setMessage(null), 4000);
     };
 
     return (
-        <div className="location-settings">
-            <div className="location-header">
-                <div className="location-title">
-                    <FiMapPin className="title-icon" />
+        <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+             className="w-full max-w-7xl mx-auto"
+        >
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 p-4 bg-dark-bg/40 border border-dark-border rounded-xl shadow-sm">
+                <div className="flex items-center gap-3">
+                    <div className="p-2.5 bg-primary/20 text-primary rounded-lg">
+                        <MapPin size={20} />
+                    </div>
                     <div>
-                        <h2>Location Restriction</h2>
-                        <p>Configure the allowed login zone for regular users. Admins can login from anywhere.</p>
+                        <h2 className="text-lg font-bold text-light-text m-0 mb-0.5">Location Restriction</h2>
+                        <p className="text-xs text-dark-text-muted m-0">Configure the allowed login zone for regular users.</p>
                     </div>
                 </div>
-                <div className="location-status">
+                <div>
                     {config ? (
-                        <span className={`status-badge ${config.enabled ? 'active' : 'inactive'}`}>
-                            {config.enabled ? '● Active' : '○ Inactive'}
+                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${config.enabled ? 'bg-success/10 text-success border-success/30' : 'bg-dark-bg/80 text-dark-text-muted border-dark-border'}`}>
+                            {config.enabled ? <span className="w-2 h-2 rounded-full bg-success"></span> : <span className="w-2 h-2 rounded-full border border-dark-text-muted"></span>}
+                            {config.enabled ? 'Active' : 'Inactive'}
                         </span>
                     ) : (
-                        <span className="status-badge inactive">○ Not Configured</span>
+                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-dark-bg/80 text-dark-text-muted border border-dark-border">
+                            <span className="w-2 h-2 rounded-full border border-dark-text-muted"></span> Not Configured
+                        </span>
                     )}
                 </div>
             </div>
@@ -289,153 +320,175 @@ const LocationSettings = () => {
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className={`location-alert ${message.type}`}
+                        className={`flex items-center gap-2.5 p-3 mb-6 rounded-lg border text-sm font-medium ${message.type === 'danger' ? 'bg-danger/10 border-danger/30 text-danger shadow-[0_0_10px_rgba(239,68,68,0.15)]' : 'bg-success/10 border-success/30 text-success shadow-[0_0_10px_rgba(34,197,94,0.15)]'}`}
                     >
+                         {message.type === 'danger' ? <AlertTriangle size={20} /> : <Shield size={20} />}
                         {message.text}
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            <div className="location-body">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
                 {/* Map Section */}
-                <div className="map-section glass-card">
-                    <div className="map-header">
-                        <h3><FiMapPin /> Map View</h3>
-                        <span className="map-hint">Click on the map to set the center point</span>
+                <div className="glass-card flex flex-col h-[400px] lg:col-span-3 lg:h-[520px] overflow-hidden p-0 relative border border-dark-border rounded-xl">
+                    <div className="absolute top-0 inset-x-0 z-[1000] p-3 bg-dark-bg/90 backdrop-blur-md border-b border-dark-border flex flex-col gap-2 shadow-sm">
+                        <div className="flex justify-between items-center w-full">
+                            <h3 className="flex items-center gap-2 text-sm text-light-text font-bold m-0"><MapPin className="text-primary" size={16} /> Map View</h3>
+                            <span className="text-[11px] text-dark-text-muted hidden sm:inline">Click to set point</span>
+                        </div>
+                        <form onSubmit={handleSearch} className="flex gap-2">
+                            <input 
+                                type="text"
+                                placeholder="Search city or address..."
+                                value={searchQuery}
+                                onChange={(e) => setSearchQuery(e.target.value)}
+                                className="w-full bg-[#111111] border border-dark-border rounded-lg px-3 py-1.5 text-sm text-light-text focus:outline-none focus:border-primary shadow-inner transition-all placeholder:text-dark-text-muted/50"
+                            />
+                            <button type="submit" className="btn btn-primary px-3 py-1.5 text-xs whitespace-nowrap rounded-lg flex items-center justify-center">
+                                <Search size={14} /> <span className="hidden sm:inline ml-1.5">Search</span>
+                            </button>
+                        </form>
                     </div>
-                    <div className="map-container" ref={mapContainerRef}></div>
-                    <div className="map-actions">
-                        <button onClick={handleUseCurrentLocation} className="btn btn-secondary btn-sm">
-                            <FiNavigation /> Use My Location
+                    <div className="flex-1 w-full z-0 h-full [&>.leaflet-container]:h-full [&>.leaflet-container]:!bg-[#0D0D1A]" ref={mapContainerRef}></div>
+                    <div className="absolute bottom-4 inset-x-0 z-[1000] px-4 text-center pointer-events-none">
+                        <button onClick={handleUseCurrentLocation} className="btn bg-dark-bg/90 hover:bg-dark-bg/100 text-xs text-light-text border border-dark-border shadow-md backdrop-blur-sm pointer-events-auto inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg">
+                            <Navigation size={14} /> Use My Location
                         </button>
                     </div>
                 </div>
 
                 {/* Config Form */}
-                <div className="config-form glass-card">
-                    <h3><FiSave /> Configuration</h3>
+                <div className="glass-card overflow-y-auto custom-scrollbar p-5 lg:col-span-2 lg:h-[520px] rounded-xl flex flex-col">
+                    <h3 className="flex items-center gap-2 text-base font-bold text-light-text mb-4 pb-3 border-b border-dark-border"><Save className="text-primary" size={16} /> Configuration</h3>
 
-                    <div className="form-grid">
-                        <div className="form-field">
-                            <label>Location Name</label>
+                    <div className="space-y-4 flex-1">
+                        <div>
+                            <label className="block text-[13px] font-semibold text-light-text mb-1">Location Name</label>
                             <input
                                 type="text"
-                                placeholder="e.g. Office, Campus, HQ"
+                                placeholder="e.g. Office, Campus"
+                                className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50"
                                 value={formData.locationName}
                                 onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
                             />
                         </div>
 
-                        <div className="form-field">
-                            <label>Center Latitude</label>
-                            <input
-                                type="number"
-                                step="0.000001"
-                                placeholder="e.g. 28.6139"
-                                value={formData.centerLatitude}
-                                onChange={(e) => setFormData({ ...formData, centerLatitude: e.target.value })}
-                            />
+                        <div className="grid grid-cols-2 gap-3">
+                            <div>
+                                <label className="block text-[13px] font-semibold text-light-text mb-1">Latitude</label>
+                                <input
+                                    type="number"
+                                    step="0.000001"
+                                    placeholder="e.g. 28.6139"
+                                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
+                                    value={formData.centerLatitude}
+                                    onChange={(e) => setFormData({ ...formData, centerLatitude: e.target.value })}
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-[13px] font-semibold text-light-text mb-1">Longitude</label>
+                                <input
+                                    type="number"
+                                    step="0.000001"
+                                    placeholder="e.g. 77.2090"
+                                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
+                                    value={formData.centerLongitude}
+                                    onChange={(e) => setFormData({ ...formData, centerLongitude: e.target.value })}
+                                />
+                            </div>
                         </div>
 
-                        <div className="form-field">
-                            <label>Center Longitude</label>
-                            <input
-                                type="number"
-                                step="0.000001"
-                                placeholder="e.g. 77.2090"
-                                value={formData.centerLongitude}
-                                onChange={(e) => setFormData({ ...formData, centerLongitude: e.target.value })}
-                            />
-                        </div>
-
-                        <div className="form-field">
-                            <label>Allowed Radius (km)</label>
+                        <div>
+                            <label className="block text-[13px] font-semibold text-light-text mb-1">Allowed Radius (km)</label>
                             <input
                                 type="number"
                                 step="0.1"
                                 min="0.1"
                                 placeholder="e.g. 2.5"
+                                className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
                                 value={formData.radiusKm}
                                 onChange={(e) => setFormData({ ...formData, radiusKm: e.target.value })}
                             />
-                            <span className="field-hint">
+                            <span className="block text-[11px] text-dark-text-muted mt-1">
                                 Users within {formData.radiusKm || '...'} km can login
                             </span>
                         </div>
 
-                        <div className="form-field toggle-field">
-                            <label>Restriction Active</label>
+                        <div className="pt-1">
+                            <label className="block text-[13px] font-semibold text-light-text mb-1.5">Restriction Status</label>
                             <button
-                                className={`toggle-btn ${formData.enabled ? 'on' : 'off'}`}
+                                className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border transition-all text-xs font-bold cursor-pointer ${formData.enabled ? 'bg-success/10 border-success/30 text-success shadow-[0_0_8px_rgba(34,197,94,0.1)] hover:bg-success/20' : 'bg-dark-bg border-dark-border text-dark-text-muted hover:text-light-text hover:bg-dark-bg/80'}`}
                                 onClick={() => setFormData({ ...formData, enabled: !formData.enabled })}
                                 type="button"
                             >
-                                {formData.enabled ? <FiToggleRight size={28} /> : <FiToggleLeft size={28} />}
-                                <span>{formData.enabled ? 'Enabled' : 'Disabled'}</span>
+                                {formData.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                                <span>{formData.enabled ? 'Active Mode' : 'Inactive Mode'}</span>
                             </button>
                         </div>
                     </div>
 
-                    <div className="form-actions-row">
-                        <button onClick={handleSave} className="btn btn-primary" disabled={saving}>
-                            {saving ? <span className="loader sm"></span> : <><FiSave /> Save Configuration</>}
+                    <div className="flex gap-2 mt-5 pt-4 border-t border-dark-border">
+                        <button onClick={handleSave} className="flex-1 btn btn-primary flex items-center justify-center py-2 text-sm rounded-lg cursor-pointer transition-transform hover:scale-[1.02]" disabled={saving}>
+                            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><Save size={16} className="mr-1.5" /> Save</>}
                         </button>
-                        <button onClick={handleNewConfig} className="btn btn-secondary">
-                            <FiRefreshCw /> New Config
+                        <button onClick={handleNewConfig} className="flex-1 btn bg-dark-bg hover:bg-dark-bg/80 border border-dark-border text-light-text flex items-center justify-center py-2 text-sm rounded-lg cursor-pointer transition-transform hover:scale-[1.02]">
+                            <RefreshCw size={14} className="mr-1.5 text-dark-text-muted" /> Reset
                         </button>
                     </div>
 
                     {/* Existing Configs */}
                     {allConfigs.length > 0 && (
-                        <div className="existing-configs">
-                            <h4>Saved Configurations</h4>
-                            {allConfigs.map((c) => (
-                                <div key={c.id} className={`config-item ${c.enabled ? 'enabled' : 'disabled'}`}>
-                                    <div className="config-info">
-                                        <span className="config-name">{c.locationName || 'Unnamed Zone'}</span>
-                                        <span className="config-details">
-                                            ({c.centerLatitude?.toFixed(4)}, {c.centerLongitude?.toFixed(4)}) • {c.radiusKm} km
-                                        </span>
+                        <div className="mt-5 pt-4 border-t border-dark-border">
+                            <h4 className="text-[11px] font-bold text-dark-text-muted uppercase tracking-wider mb-3">Saved Configurations</h4>
+                            <div className="space-y-2">
+                                {allConfigs.map((c) => (
+                                    <div key={c.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${c.enabled ? 'bg-primary/5 border-primary/20 shadow-[0_0_8px_rgba(37,99,235,0.05)]' : 'bg-dark-bg/50 border-dark-border opacity-70'}`}>
+                                        <div className="flex-1 pr-3 min-w-0">
+                                            <span className="block text-xs font-bold text-light-text truncate">{c.locationName || 'Unnamed Zone'}</span>
+                                            <span className="block text-[10px] text-dark-text-muted mt-0.5 font-mono">
+                                                ({c.centerLatitude?.toFixed(4)}, {c.centerLongitude?.toFixed(4)}) • {c.radiusKm} km
+                                            </span>
+                                        </div>
+                                        <div className="flex items-center gap-1.5 shrink-0">
+                                            <button
+                                                onClick={() => handleToggle(c.id, c.enabled)}
+                                                className={`p-1.5 rounded-md transition-colors cursor-pointer ${c.enabled ? 'text-success bg-success/10 hover:bg-success/20' : 'text-dark-text-muted hover:text-light-text border border-dark-border bg-dark-bg'}`}
+                                                title={c.enabled ? 'Disable' : 'Enable'}
+                                            >
+                                                {c.enabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
+                                            </button>
+                                            <button
+                                                onClick={() => {
+                                                    setFormData({
+                                                        id: c.id,
+                                                        centerLatitude: c.centerLatitude?.toString(),
+                                                        centerLongitude: c.centerLongitude?.toString(),
+                                                        radiusKm: c.radiusKm?.toString(),
+                                                        locationName: c.locationName || '',
+                                                        enabled: c.enabled,
+                                                    });
+                                                }}
+                                                className="p-1.5 text-dark-text-muted hover:text-primary bg-dark-bg border border-dark-border rounded-md hover:border-primary/50 transition-colors cursor-pointer"
+                                                title="Edit"
+                                            >
+                                                <MapPin size={14} />
+                                            </button>
+                                            <button
+                                                onClick={() => handleDelete(c.id)}
+                                                className="p-1.5 text-dark-text-muted hover:text-danger bg-dark-bg border border-dark-border rounded-md hover:border-danger/50 hover:bg-danger/10 transition-colors cursor-pointer"
+                                                title="Delete"
+                                            >
+                                                <Trash2 size={14} />
+                                            </button>
+                                        </div>
                                     </div>
-                                    <div className="config-actions">
-                                        <button
-                                            onClick={() => handleToggle(c.id, c.enabled)}
-                                            className={`btn-icon ${c.enabled ? 'active' : ''}`}
-                                            title={c.enabled ? 'Disable' : 'Enable'}
-                                        >
-                                            {c.enabled ? <FiToggleRight /> : <FiToggleLeft />}
-                                        </button>
-                                        <button
-                                            onClick={() => {
-                                                setFormData({
-                                                    id: c.id,
-                                                    centerLatitude: c.centerLatitude?.toString(),
-                                                    centerLongitude: c.centerLongitude?.toString(),
-                                                    radiusKm: c.radiusKm?.toString(),
-                                                    locationName: c.locationName || '',
-                                                    enabled: c.enabled,
-                                                });
-                                            }}
-                                            className="btn-icon"
-                                            title="Edit"
-                                        >
-                                            <FiMapPin />
-                                        </button>
-                                        <button
-                                            onClick={() => handleDelete(c.id)}
-                                            className="btn-icon danger"
-                                            title="Delete"
-                                        >
-                                            <FiTrash2 />
-                                        </button>
-                                    </div>
-                                </div>
-                            ))}
+                                ))}
+                            </div>
                         </div>
                     )}
                 </div>
             </div>
-        </div>
+        </motion.div>
     );
 };
 
