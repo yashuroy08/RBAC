@@ -90,9 +90,30 @@ public class UserController {
     @GetMapping("/my-risk-status")
     @PreAuthorize("hasAnyRole('USER', 'ADMIN')")
     @ApiOperation("Get current user's risk status")
-    public ResponseEntity<ApiResponse> getMyRiskStatus(@AuthenticationPrincipal UserPrincipal principal) {
+    public ResponseEntity<ApiResponse> getMyRiskStatus(
+            @AuthenticationPrincipal UserPrincipal principal,
+            javax.servlet.http.HttpServletRequest request) {
         try {
             RiskEvaluationResponse response = riskEvaluatorService.getRiskEvaluation(principal.getId());
+            
+            // Extract current device ID from User-Agent to help frontend identify "This Device"
+            String userAgent = request.getHeader("User-Agent");
+            if (userAgent != null) {
+                try {
+                    java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                    byte[] hash = digest.digest(userAgent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                    StringBuilder hexString = new StringBuilder();
+                    for (byte b : hash) {
+                        String hex = Integer.toHexString(0xff & b);
+                        if (hex.length() == 1) hexString.append('0');
+                        hexString.append(hex);
+                    }
+                    response.setCurrentDeviceId(hexString.toString().substring(0, 32));
+                } catch (Exception e) {
+                    // Fallback or ignore
+                }
+            }
+            
             return ResponseEntity.ok(ApiResponse.success("Risk status retrieved", response));
         } catch (Exception e) {
             log.error("Error getting risk status: {}", e.getMessage());

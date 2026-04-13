@@ -6,8 +6,8 @@ export default defineConfig({
   plugins: [react(), tailwindcss()],
   server: {
     port: 3000,
-    host: true,
-    allowedHosts: ['subhyoidean-deadra-sidereally.ngrok-free.dev'],
+    host: true, // Listen on all network interfaces
+    allowedHosts: true, // Allow access from any host (e.g., local IP, ngrok)
     proxy: {
       '/api': {
         target: 'http://localhost:8081',

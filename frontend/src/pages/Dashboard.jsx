@@ -1,17 +1,18 @@
 import { useState, useEffect, useCallback } from 'react';
 import { useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { userRiskAPI } from '../services/api';
+import { Activity, Monitor, Shield, AlertTriangle, Smartphone, Globe, Clock, Play, RefreshCw, StopCircle, CheckCircle, Trash2, ShieldCheck } from 'lucide-react';
+import { authAPI, userRiskAPI } from '../services/api';
+import { motion } from 'framer-motion';
 import Navbar from '../components/Navbar';
 import RiskEngine from '../components/RiskEngine';
-import { Activity, Monitor, Shield, AlertTriangle, Smartphone, Globe, Clock, Play, RefreshCw, StopCircle } from 'lucide-react';
-import { motion } from 'framer-motion';
 
 const Dashboard = () => {
     const { user } = useAuth();
     const [riskStatus, setRiskStatus] = useState(null);
     const [activeSessions, setActiveSessions] = useState([]);
     const [riskEvents, setRiskEvents] = useState([]);
+    const [trustedDevices, setTrustedDevices] = useState([]);
     const location = useLocation();
     const [loginMessage, setLoginMessage] = useState(location.state?.loginMessage || null);
     const [loading, setLoading] = useState(true);
@@ -31,15 +32,17 @@ const Dashboard = () => {
     const fetchDashboardData = useCallback(async (isManual = false) => {
         try {
             if (isManual) setRefreshing(true);
-            const [statusRes, sessionsRes, eventsRes] = await Promise.all([
+            const [statusRes, sessionsRes, eventsRes, trustedRes] = await Promise.all([
                 userRiskAPI.getRiskStatus(),
                 userRiskAPI.getActiveSessions(),
                 userRiskAPI.getRiskEvents(5),
+                authAPI.getTrustedDevices(),
             ]);
 
             if (statusRes.data.success) setRiskStatus(statusRes.data.data);
             if (sessionsRes.data.success) setActiveSessions(sessionsRes.data.data);
             if (eventsRes.data.success) setRiskEvents(eventsRes.data.data);
+            if (trustedRes.data.success) setTrustedDevices(trustedRes.data.data);
             setLastUpdated(new Date());
         } catch (error) {
             console.error('Error fetching dashboard data:', error);
@@ -68,6 +71,17 @@ const Dashboard = () => {
 
     const toggleSimulation = () => {
         setSimulationMode(!simulationMode);
+    };
+
+    const revokeDevice = async (deviceId) => {
+        try {
+            const response = await authAPI.revokeTrustedDevice(deviceId);
+            if (response.data.success) {
+                fetchDashboardData();
+            }
+        } catch (error) {
+            console.error('Error revoking device:', error);
+        }
     };
 
 
@@ -377,6 +391,84 @@ const Dashboard = () => {
                             </div>
                         </motion.div>
                     </div>
+
+                    {/* Trusted Devices Section */}
+                    <motion.div
+                        initial={{ opacity: 0, y: 20 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: 0.6 }}
+                        className="glass-card p-6"
+                    >
+                        <div className="flex items-center justify-between mb-6 pb-4 border-b border-dark-border">
+                            <div className="flex items-center gap-3">
+                                <div className="p-2 bg-success/10 text-success rounded-lg">
+                                    <ShieldCheck size={20} />
+                                </div>
+                                <h2 className="text-xl font-bold text-light-text m-0">Trusted Devices</h2>
+                            </div>
+                            <span className="text-xs text-dark-text-muted">Devices requiring no further MFA</span>
+                        </div>
+
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                            {trustedDevices && trustedDevices.length > 0 ? (
+                                trustedDevices.map((device) => (
+                                    <div 
+                                        key={device.id} 
+                                        className={`p-4 rounded-xl border transition-all ${device.trusted ? 'bg-success/5 border-success/20' : 'bg-dark-bg border-dark-border opacity-60'}`}
+                                    >
+                                        <div className="flex justify-between items-start mb-4">
+                                             <div className="p-2 bg-dark-bg rounded-lg border border-dark-border">
+                                                 <Smartphone size={20} className={device.trusted ? 'text-success' : 'text-dark-text-muted'} />
+                                             </div>
+                                             <div className="flex items-center gap-2">
+                                                 {riskStatus?.currentDeviceId === device.deviceId && (
+                                                     <span className="px-2 py-0.5 bg-primary/20 text-primary border border-primary/30 rounded text-[10px] font-bold uppercase tracking-wider">
+                                                         This Device
+                                                     </span>
+                                                 )}
+                                                 {device.trusted ? (
+                                                     <button 
+                                                         onClick={() => {
+                                                             if (window.confirm(`Are you sure you want to revoke trust for ${device.deviceName || 'this device'}? This will also terminate any active sessions on that device.`)) {
+                                                                 revokeDevice(device.id);
+                                                             }
+                                                         }}
+                                                         className="p-1.5 text-dark-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-all"
+                                                         title="Revoke trust"
+                                                     >
+                                                         <Trash2 size={16} />
+                                                     </button>
+                                                 ) : (
+                                                     <span className="text-[10px] font-bold text-dark-text-muted uppercase tracking-wider">Untrusted</span>
+                                                 )}
+                                             </div>
+                                         </div>
+                                         <h3 className="font-semibold text-light-text mb-1">{device.deviceName || 'Unknown Device'}</h3>
+                                        <p className="text-xs font-mono text-dark-text-muted mb-3 truncate">{device.deviceId}</p>
+                                        
+                                        <div className="flex items-center justify-between mt-auto pt-3 border-t border-dark-border/50">
+                                            <div className="flex flex-col">
+                                                <span className="text-[10px] text-dark-text-muted uppercase font-bold">Last Used</span>
+                                                <span className="text-xs text-light-text">{device.lastLoginTime ? new Date(device.lastLoginTime).toLocaleDateString() : 'N/A'}</span>
+                                            </div>
+                                            {device.trusted && (
+                                                <div className="flex items-center gap-1 text-success">
+                                                    <CheckCircle size={12} />
+                                                    <span className="text-[10px] font-bold uppercase">Trusted</span>
+                                                </div>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))
+                            ) : (
+                                <div className="col-span-full py-12 flex flex-col items-center justify-center text-dark-text-muted border-2 border-dashed border-dark-border rounded-2xl">
+                                    <Shield size={32} className="opacity-20 mb-2" />
+                                    <p className="text-sm">No trusted devices registered yet.</p>
+                                    <p className="text-xs mt-1">Trust a device during login to see it here.</p>
+                                </div>
+                            )}
+                        </div>
+                    </motion.div>
                 </div>
             </main>
         </div>

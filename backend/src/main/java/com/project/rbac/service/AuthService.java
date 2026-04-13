@@ -17,6 +17,11 @@ import javax.servlet.http.HttpServletRequest;
 import javax.servlet.http.HttpSession;
 import java.util.Base64;
 import java.util.UUID;
+import java.security.MessageDigest;
+import java.nio.charset.StandardCharsets;
+import com.project.rbac.dto.RiskEvaluationResponse;
+import org.springframework.web.context.request.RequestContextHolder;
+import org.springframework.web.context.request.ServletRequestAttributes;
 
 /**
  * Authentication Service
@@ -95,13 +100,23 @@ public class AuthService {
         // Register session in Risk Evaluator
         String sessionId = session.getId();
         String deviceId = generateDeviceId(request);
+        String deviceName = getDeviceName(request);
         String ipAddress = getClientIpAddress(request);
 
         com.project.rbac.dto.RiskEvaluationResponse riskResponse = riskEvaluatorService.registerSession(
                 userPrincipal.getId(),
                 sessionId,
                 deviceId,
+                deviceName,
                 ipAddress);
+
+        // If MFA is required, flag the session as pending MFA
+        if (riskResponse != null && riskResponse.isMfaRequired()) {
+            session.setAttribute("MFA_PENDING", true);
+            log.info("🔒 Session {} flagged as MFA_PENDING", sessionId);
+        } else {
+            session.removeAttribute("MFA_PENDING");
+        }
 
         return new AuthResult(userPrincipal, riskResponse);
     }
@@ -156,10 +171,48 @@ public class AuthService {
         Authentication authentication = SecurityContextHolder.getContext().getAuthentication();
 
         if (authentication != null && authentication.getPrincipal() instanceof UserPrincipal) {
-            return (UserPrincipal) authentication.getPrincipal();
+            UserPrincipal principal = (UserPrincipal) authentication.getPrincipal();
+            
+            // CRITICAL: Check if this session is pending MFA verification
+            ServletRequestAttributes attr = (ServletRequestAttributes) RequestContextHolder.currentRequestAttributes();
+            HttpSession session = attr.getRequest().getSession(false);
+            
+            if (session != null && Boolean.TRUE.equals(session.getAttribute("MFA_PENDING"))) {
+                log.warn("Attempt to access current user during MFA_PENDING state for user: {}", principal.getUsername());
+                return null;
+            }
+            
+            return principal;
         }
 
         return null;
+    }
+
+    /**
+     * Parse human-readable device name from User-Agent
+     */
+    private String getDeviceName(HttpServletRequest request) {
+        String ua = request.getHeader("User-Agent");
+        if (ua == null || ua.isEmpty()) return "Unknown Device";
+
+        String browser = "Unknown Browser";
+        String os = "Unknown OS";
+
+        // Simple Browser Detection
+        if (ua.contains("Edg")) browser = "Edge";
+        else if (ua.contains("Chrome")) browser = "Chrome";
+        else if (ua.contains("Safari")) browser = "Safari";
+        else if (ua.contains("Firefox")) browser = "Firefox";
+        else if (ua.contains("MSIE") || ua.contains("Trident")) browser = "IE";
+
+        // Simple OS Detection
+        if (ua.contains("Windows")) os = "Windows";
+        else if (ua.contains("Android")) os = "Android";
+        else if (ua.contains("iPhone") || ua.contains("iPad")) os = "iOS";
+        else if (ua.contains("Macintosh")) os = "macOS";
+        else if (ua.contains("Linux")) os = "Linux";
+
+        return browser + " on " + os;
     }
 
     /**
@@ -172,10 +225,27 @@ public class AuthService {
     private String generateDeviceId(HttpServletRequest request) {
         String userAgent = request.getHeader("User-Agent");
         if (userAgent != null && !userAgent.isEmpty()) {
-            // Create a hash of User-Agent for device identification
-            return Base64.getEncoder().encodeToString(userAgent.getBytes()).substring(0, 20);
+            try {
+                java.security.MessageDigest digest = java.security.MessageDigest.getInstance("SHA-256");
+                byte[] hash = digest.digest(userAgent.getBytes(java.nio.charset.StandardCharsets.UTF_8));
+                StringBuilder hexString = new StringBuilder();
+                for (byte b : hash) {
+                    String hex = Integer.toHexString(0xff & b);
+                    if (hex.length() == 1) hexString.append('0');
+                    hexString.append(hex);
+                }
+                String id = hexString.toString().substring(0, 32);
+                log.info("🖥️ Generated Device ID: {} from User-Agent", id);
+                return id;
+            } catch (Exception e) {
+                String id = Base64.getEncoder().encodeToString(userAgent.getBytes()).substring(0, Math.min(userAgent.length(), 20));
+                log.info("🖥️ Generated Fallback Device ID: {}", id);
+                return id;
+            }
         }
-        return "UNKNOWN_DEVICE_" + UUID.randomUUID().toString().substring(0, 8);
+        String id = "UNKNOWN_DEVICE_" + UUID.randomUUID().toString().substring(0, 8);
+        log.info("🖥️ Generated Random Device ID: {}", id);
+        return id;
     }
 
     /**

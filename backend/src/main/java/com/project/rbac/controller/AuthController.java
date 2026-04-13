@@ -1,11 +1,9 @@
 package com.project.rbac.controller;
 
-import com.project.rbac.dto.ApiResponse;
-import com.project.rbac.dto.LoginRequest;
-import com.project.rbac.dto.RegistrationRequest;
-import com.project.rbac.dto.UserResponse;
+import com.project.rbac.dto.*;
 import com.project.rbac.security.UserPrincipal;
 import com.project.rbac.service.AuthService;
+import com.project.rbac.service.RiskEvaluatorService;
 import com.project.rbac.service.UserService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
@@ -16,6 +14,8 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
 import javax.servlet.http.HttpServletRequest;
+import javax.servlet.http.HttpSession;
+import org.springframework.security.core.Authentication;
 import javax.validation.Valid;
 
 /**
@@ -36,6 +36,7 @@ public class AuthController {
 
     private final UserService userService;
     private final AuthService authService;
+    private final RiskEvaluatorService riskEvaluatorService;
 
     /**
      * Register new user
@@ -94,9 +95,20 @@ public class AuthController {
                     userPrincipal.getUsername(), sessionId);
 
             String message = "Login successful";
-            if (riskResponse != null && riskResponse.isThresholdExceeded()) {
-                message = "Warning: Security limits exceeded. Other persons or previous sessions logged in the account have been logged out.";
+            boolean mfaRequired = false;
+            String mfaMessage = null;
+
+            if (riskResponse != null) {
+                if (riskResponse.isMfaRequired()) {
+                    mfaRequired = true;
+                    mfaMessage = riskResponse.getMfaMessage();
+                    message = mfaMessage;
+                } else if (riskResponse.isThresholdExceeded()) {
+                    message = "Warning: Security limits exceeded. Other persons or previous sessions logged in the account have been logged out.";
+                }
             }
+
+            log.info("📢 Login status - MFA Required: {}, Message: {}", mfaRequired, message);
 
             return ResponseEntity.ok(ApiResponse.success(
                     message,
@@ -105,7 +117,9 @@ public class AuthController {
                             userPrincipal.getUsername(),
                             userPrincipal.getEmail(),
                             sessionId,
-                            userPrincipal.getAuthorities().toString())));
+                            userPrincipal.getAuthorities().toString(),
+                            mfaRequired,
+                            mfaMessage)));
 
         } catch (org.springframework.security.authentication.LockedException e) {
             log.warn("Login denied: Account locked for user: {}", loginRequest.getUsername());
@@ -235,6 +249,94 @@ public class AuthController {
     }
 
     /**
+     * Verify MFA OTP and trust device
+     */
+    @PostMapping("/verify-mfa")
+    @ApiOperation("Verify MFA OTP and trust device")
+    public ResponseEntity<ApiResponse> verifyMfa(
+            @Valid @RequestBody MfaVerificationRequest verificationRequest,
+            HttpServletRequest request) {
+        try {
+            // Can't use authService.getCurrentUser() because it blocks MFA_PENDING sessions
+            Authentication authentication = org.springframework.security.core.context.SecurityContextHolder.getContext().getAuthentication();
+            if (authentication == null || !(authentication.getPrincipal() instanceof UserPrincipal)) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
+            }
+            
+            UserPrincipal currentUser = (UserPrincipal) authentication.getPrincipal();
+
+            boolean verified = riskEvaluatorService.verifyMfaAndTrustDevice(
+                    currentUser.getId(), 
+                    verificationRequest.getSessionId(), 
+                    verificationRequest.getOtp()
+            );
+
+            if (verified) {
+                // IMPORTANT: Remove the MFA_PENDING flag to unlock the session
+                HttpSession session = request.getSession(false);
+                if (session != null) {
+                    session.removeAttribute("MFA_PENDING");
+                    log.info("🔓 Session {} unlocked - MFA verified for user {}", session.getId(), currentUser.getUsername());
+                }
+                
+                return ResponseEntity.ok(ApiResponse.success("MFA verified and device trusted successfully"));
+            } else {
+                return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Invalid OTP. Please try again."));
+            }
+        } catch (Exception e) {
+            log.error("MFA verification error: {}", e.getMessage());
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("MFA verification failed"));
+        }
+    }
+
+    /**
+     * Get trusted devices for current user
+     */
+    @GetMapping("/trusted-devices")
+    @ApiOperation("Get trusted devices for current user")
+    public ResponseEntity<ApiResponse> getTrustedDevices() {
+        try {
+            UserPrincipal currentUser = authService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
+            }
+
+            // This would normally be in a separate DeviceService but since we're adding it to Auth
+            // We'll use the repository directly or add a method to RiskEvaluator
+            // For now, let's assume we can get them from a new method in RiskEvaluatorService
+            return ResponseEntity.ok(ApiResponse.success(
+                    "Trusted devices retrieved",
+                    riskEvaluatorService.getTrustedDevicesForUser(currentUser.getId())
+            ));
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Failed to retrieve trusted devices"));
+        }
+    }
+
+    /**
+     * Revoke trust for a device
+     */
+    @DeleteMapping("/trusted-devices/{id}/revoke")
+    @ApiOperation("Revoke trust for a device")
+    public ResponseEntity<ApiResponse> revokeTrustedDevice(@PathVariable Long id) {
+        try {
+            UserPrincipal currentUser = authService.getCurrentUser();
+            if (currentUser == null) {
+                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
+            }
+
+            boolean revoked = riskEvaluatorService.revokeTrustedDevice(currentUser.getId(), id);
+            if (revoked) {
+                return ResponseEntity.ok(ApiResponse.success("Device trust revoked successfully"));
+            } else {
+                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Device not found or not owned by you"));
+            }
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Failed to revoke device trust"));
+        }
+    }
+
+    /**
      * Inner class for login response
      */
     private static class LoginResponse {
@@ -243,13 +345,37 @@ public class AuthController {
         public String email;
         public String sessionId;
         public String roles;
+        public boolean mfaRequired;
+        public String mfaMessage;
 
-        public LoginResponse(Long id, String username, String email, String sessionId, String roles) {
+        public LoginResponse(Long id, String username, String email, String sessionId, String roles, boolean mfaRequired, String mfaMessage) {
             this.id = id;
             this.username = username;
             this.email = email;
             this.sessionId = sessionId;
             this.roles = roles;
+            this.mfaRequired = mfaRequired;
+            this.mfaMessage = mfaMessage;
+        }
+    }
+
+    /**
+     * Revoke trust for a device
+     */
+    @PostMapping("/revoke-device/{id}")
+    @ApiOperation("Revoke trust for a specific device")
+    public ResponseEntity<ApiResponse> revokeTrustedDevice(@PathVariable Long id) {
+        UserPrincipal currentUser = authService.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
+        }
+
+        try {
+            riskEvaluatorService.revokeDevice(currentUser.getId(), id);
+            return ResponseEntity.ok(ApiResponse.success("Device trust revoked successfully. Associated sessions terminated."));
+        } catch (Exception e) {
+            log.error("Error revoking device {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }
     }
 }

@@ -66,4 +66,10 @@ public interface UserSessionRepository extends JpaRepository<UserSession, Long> 
      * @return List of all sessions
      */
     List<UserSession> findByUserId(Long userId);
+
+    /**
+     * Find active sessions by user ID and device ID
+     */
+    @Query("SELECT us FROM UserSession us WHERE us.user.id = :userId AND us.deviceId = :deviceId AND us.active = true")
+    List<UserSession> findActiveByUserIdAndDeviceId(@Param("userId") Long userId, @Param("deviceId") String deviceId);
 }

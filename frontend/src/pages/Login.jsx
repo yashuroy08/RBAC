@@ -3,15 +3,17 @@ import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
 import { User, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, MapPin } from 'lucide-react';
+import MfaModal from '../components/MfaModal';
 
 const Login = () => {
     const navigate = useNavigate();
-    const { login } = useAuth();
+    const { login, checkAuth } = useAuth();
     const [formData, setFormData] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
     const [locationError, setLocationError] = useState(false);
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
+    const [mfaData, setMfaData] = useState({ required: false, sessionId: '', message: '' });
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -26,7 +28,15 @@ const Login = () => {
         try {
             const response = await login(formData);
             if (response && response.success) {
-                navigate('/dashboard', { state: { loginMessage: response.message } });
+                if (response.data?.mfaRequired) {
+                    setMfaData({
+                        required: true,
+                        sessionId: response.data.sessionId,
+                        message: response.data.mfaMessage
+                    });
+                } else {
+                    navigate('/dashboard', { state: { loginMessage: response.message } });
+                }
             } else {
                 if (response?.message) setError(response.message);
                 else navigate('/dashboard');
@@ -161,6 +171,16 @@ const Login = () => {
                 <MapPin size={14} />
                 <span>Location-Verified Access</span>
             </div>
+
+            <MfaModal
+                isOpen={mfaData.required}
+                onClose={() => setMfaData({ ...mfaData, required: false })}
+                sessionId={mfaData.sessionId}
+                onVerified={async () => {
+                    await checkAuth();
+                    navigate('/dashboard', { state: { loginMessage: 'Verification successful. Welcome back!' } });
+                }}
+            />
         </div>
     );
 };

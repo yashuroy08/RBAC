@@ -20,6 +20,9 @@ public class RiskEvaluationResponse {
     private double riskScore;
     private String riskLevel; // LOW, MEDIUM, HIGH, CRITICAL
     private boolean thresholdExceeded;
+    private boolean mfaRequired;
+    private String mfaMessage;
     private String action; // NONE, SESSIONS_INVALIDATED
     private String message;
+    private String currentDeviceId;
 }

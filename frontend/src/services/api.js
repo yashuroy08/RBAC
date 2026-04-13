@@ -28,6 +28,9 @@ export const authAPI = {
     login: (data) => api.post('/auth/login', data),
     logout: () => api.post('/auth/logout'),
     getCurrentUser: () => api.get('/auth/me'),
+    verifyMfa: (data) => api.post('/auth/verify-mfa', data),
+    getTrustedDevices: () => api.get('/auth/trusted-devices'),
+    revokeTrustedDevice: (deviceId) => api.delete(`/auth/trusted-devices/${deviceId}/revoke`),
 };
 
 export const userAPI = {

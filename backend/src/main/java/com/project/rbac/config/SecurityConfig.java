@@ -38,6 +38,7 @@ import java.util.Collections;
 public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
+    private final com.project.rbac.security.MfaEnforcementFilter mfaEnforcementFilter;
 
     /**
      * BCrypt Password Encoder Bean
@@ -96,6 +97,9 @@ public class SecurityConfig {
                 // NOTE: Disabled for easier REST API testing with Postman
                 // In production with web frontend, enable CSRF protection
                 .csrf().disable()
+
+                // MFA Enforcement Filter
+                .addFilterAfter(mfaEnforcementFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
 
                 // Session Management Configuration
                 .sessionManagement()

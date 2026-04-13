@@ -2,10 +2,13 @@ package com.project.rbac.service;
 
 import com.project.rbac.dto.RiskEvaluationResponse;
 import com.project.rbac.dto.SessionInfoDTO;
+import com.project.rbac.dto.TrustedDeviceDTO;
 import com.project.rbac.entity.RiskEvent;
+import com.project.rbac.entity.TrustedDevice;
 import com.project.rbac.entity.User;
 import com.project.rbac.entity.UserSession;
 import com.project.rbac.repository.RiskEventRepository;
+import com.project.rbac.repository.TrustedDeviceRepository;
 import com.project.rbac.repository.UserRepository;
 import com.project.rbac.repository.UserSessionRepository;
 import lombok.RequiredArgsConstructor;
@@ -17,6 +20,7 @@ import org.springframework.transaction.annotation.Transactional;
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
 /**
@@ -44,6 +48,8 @@ public class RiskEvaluatorService {
     private final UserRepository userRepository;
     private final RiskEventRepository riskEventRepository;
     private final SessionInvalidationService sessionInvalidationService;
+    private final TrustedDeviceRepository trustedDeviceRepository;
+    private final MfaService mfaService;
 
     @Value("${risk.evaluator.max-sessions:2}")
     private int maxAllowedSessions;
@@ -61,16 +67,21 @@ public class RiskEvaluatorService {
      * @param ipAddress User IP address
      */
     @Transactional
-    public RiskEvaluationResponse registerSession(Long userId, String sessionId, String deviceId, String ipAddress) {
-        log.info("📢 New login attempt for User ID: {}. Session: {}", userId, sessionId);
+    public RiskEvaluationResponse registerSession(Long userId, String sessionId, String deviceId, String deviceName, String ipAddress) {
+        log.info("📢 New login attempt for User ID: {}. Session: {}. Device: {}", userId, sessionId, deviceName);
 
         User user = userRepository.findById(userId)
                 .orElseThrow(() -> new RuntimeException("User not found with ID: " + userId));
 
-        // Create new session record
-        UserSession userSession = new UserSession();
+        // Check if session already exists (prevents UNIQUE constraint violation)
+        UserSession userSession = userSessionRepository.findBySessionId(sessionId)
+                .orElseGet(() -> {
+                    UserSession newSession = new UserSession();
+                    newSession.setSessionId(sessionId);
+                    return newSession;
+                });
+
         userSession.setUser(user);
-        userSession.setSessionId(sessionId);
         userSession.setDeviceId(deviceId);
         userSession.setIpAddress(ipAddress);
         userSession.setLoginTime(LocalDateTime.now());
@@ -82,9 +93,56 @@ public class RiskEvaluatorService {
         log.info("✅ Session registered for {}. Total active sessions now in DB: {}", user.getUsername(),
                 countAfterSave);
 
-        // Evaluate risk after registering new session, passing the current sessionId to
-        // keep it alive
-        return evaluateRisk(userId, sessionId);
+        // --- NEW FEATURE: Device Recognition & Adaptive MFA ---
+
+        Optional<TrustedDevice> existingDevice = trustedDeviceRepository.findByUserIdAndDeviceId(userId, deviceId);
+        
+        // If device exists but doesn't have a name, or name is generic, update it
+        if (existingDevice.isPresent()) {
+            TrustedDevice device = existingDevice.get();
+            if (device.getDeviceName() == null || device.getDeviceName().equals("Unknown Device")) {
+                device.setDeviceName(deviceName);
+                device.setLastLoginTime(LocalDateTime.now());
+                trustedDeviceRepository.save(device);
+            }
+        } else {
+            // Create a new untrusted device record by default
+            // It will be marked as trusted only after MFA verification
+            TrustedDevice newDevice = new TrustedDevice();
+            newDevice.setUser(user);
+            newDevice.setDeviceId(deviceId);
+            newDevice.setDeviceName(deviceName);
+            newDevice.setTrusted(false); // New devices must pass MFA first
+            newDevice.setLastLoginTime(LocalDateTime.now());
+            trustedDeviceRepository.save(newDevice);
+            log.info("📱 Created new device record for {}: {}", user.getUsername(), deviceName);
+        }
+
+        boolean isDeviceTrusted = existingDevice.isPresent() && existingDevice.get().isTrusted();
+        
+        log.info("🖥️ [DEVICE CHECK] User: {}, DeviceID: {}, Trust Found: {}, IsTrusted: {}", 
+                user.getUsername(), deviceId, existingDevice.isPresent(), isDeviceTrusted);
+        
+        // Evaluate overall risk
+        RiskEvaluationResponse response = evaluateRisk(userId, sessionId);
+
+        if (!isDeviceTrusted) {
+            log.warn("🚨 [MFA TRIGGER] UNTRUSTED DEVICE for user: {}. Setting mfaRequired=true", user.getUsername());
+            
+            // Generate OTP and set MFA flag
+            mfaService.generateOtp(userId);
+            
+            response.setMfaRequired(true);
+            response.setMfaMessage("Login from an unrecognized device. Please enter the OTP sent to your email to trust this device.");
+            
+            // Influence risk level display
+            response.setRiskLevel("HIGH (Unrecognized Device)");
+        } else {
+            log.info("✅ [DEVICE TRUSTED] Proceeding without MFA for user: {}", user.getUsername());
+            response.setMfaRequired(false);
+        }
+
+        return response;
     }
 
     /**
@@ -123,10 +181,9 @@ public class RiskEvaluatorService {
         response.setRiskScore(riskScore);
         response.setRiskLevel(determineRiskLevel(activeSessions, maxAllowedSessions));
 
-        // ACTION TRIGGER: Invalidate sessions when the risk score exceeds the threshold.
-        // The threshold is set in application.properties (default: 50%).
-        // This means: if activeSessions / maxAllowedSessions > threshold%, enforce.
-        boolean limitExceeded = riskScore > riskThreshold;
+        // ACTION TRIGGER: Invalidate sessions when the limit is exceeded.
+        // We trigger enforcement only if the number of active sessions exceeds our hard limit.
+        boolean limitExceeded = activeSessions > maxAllowedSessions;
 
         if (limitExceeded) {
             log.warn("🚨 RISK THRESHOLD EXCEEDED! Score: {}% > Threshold: {}%", String.format("%.1f", riskScore), riskThreshold);
@@ -244,6 +301,95 @@ public class RiskEvaluatorService {
     @Transactional
     public void invalidateAllUserSessions(Long userId) {
         invalidateSessionsExcept(userId, null);
+    }
+
+    @Transactional
+    public boolean verifyMfaAndTrustDevice(Long userId, String sessionId, String otp) {
+        boolean verified = mfaService.verifyOtp(userId, otp);
+        if (verified) {
+            userSessionRepository.findBySessionId(sessionId).ifPresent(session -> {
+                String deviceId = session.getDeviceId();
+                if (trustedDeviceRepository.findByUserIdAndDeviceId(userId, deviceId).isEmpty()) {
+                    TrustedDevice trustedDevice = new TrustedDevice();
+                    trustedDevice.setUser(session.getUser());
+                    trustedDevice.setDeviceId(deviceId);
+                    trustedDevice.setDeviceName("Recognized Device (" + deviceId.substring(0, 8) + ")");
+                    trustedDevice.setTrusted(true);
+                    trustedDeviceRepository.save(trustedDevice);
+                    log.info("✅ Device {} is now TRUSTED for user {}", deviceId, userId);
+                } else {
+                    trustedDeviceRepository.findByUserIdAndDeviceId(userId, deviceId).ifPresent(td -> {
+                        td.setTrusted(true);
+                        td.setLastLoginTime(LocalDateTime.now());
+                        trustedDeviceRepository.save(td);
+                        log.info("✅ Device {} re-trusted for user {}", deviceId, userId);
+                    });
+                }
+            });
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Get all trusted devices for a user
+     */
+    @Transactional(readOnly = true)
+    public List<TrustedDeviceDTO> getTrustedDevicesForUser(Long userId) {
+        return trustedDeviceRepository.findByUserId(userId).stream()
+                .map(this::convertToDeviceDTO)
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Revoke trust for a device and invalidate its sessions
+     * 
+     * @param userId         User ID
+     * @param trustRecordId Table ID of the trusted device record
+     * @return true if successful
+     */
+    @Transactional
+    public boolean revokeDevice(Long userId, Long trustRecordId) {
+        TrustedDevice device = trustedDeviceRepository.findById(trustRecordId)
+                .orElseThrow(() -> new RuntimeException("Device trust record not found"));
+
+        if (!device.getUser().getId().equals(userId)) {
+            log.warn("❌ Unauthorized revocation attempt for user {} on record {}", userId, trustRecordId);
+            return false;
+        }
+
+        log.info("🚫 Revoking trust for user {} on device: {}", userId, device.getDeviceName());
+
+        // 1. Remove trust
+        device.setTrusted(false);
+        trustedDeviceRepository.save(device);
+
+        // 2. Invalidate all sessions for this user on this specific device
+        List<UserSession> activeSessionsOnDevice = userSessionRepository.findActiveByUserIdAndDeviceId(userId, device.getDeviceId());
+        
+        for (UserSession session : activeSessionsOnDevice) {
+            log.info("⚠️ Kicking out session {} due to device revocation", session.getSessionId());
+            
+            // Invalidate Spring Session
+            sessionInvalidationService.invalidateSession(session.getSessionId());
+            
+            // Mark as inactive in DB
+            session.setActive(false);
+            userSessionRepository.save(session);
+        }
+        
+        return true;
+    }
+
+    private TrustedDeviceDTO convertToDeviceDTO(TrustedDevice device) {
+        TrustedDeviceDTO dto = new TrustedDeviceDTO();
+        dto.setId(device.getId());
+        dto.setDeviceId(device.getDeviceId());
+        dto.setDeviceName(device.getDeviceName());
+        dto.setTrusted(device.isTrusted());
+        dto.setLastLoginTime(device.getLastLoginTime());
+        dto.setCreatedAt(device.getCreatedAt());
+        return dto;
     }
 
     /**

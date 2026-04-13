@@ -68,7 +68,9 @@ export const AuthProvider = ({ children }) => {
         };
 
         const response = await authAPI.login(loginData);
-        if (response.data.success) {
+        // ONLY set user if MFA is not required. 
+        // If MFA is required, we wait until it's verified to set the user state.
+        if (response.data.success && !response.data.data?.mfaRequired) {
             setUser(response.data.data);
         }
         return response.data;
