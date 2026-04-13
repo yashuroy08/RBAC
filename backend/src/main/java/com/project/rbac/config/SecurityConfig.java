@@ -174,7 +174,16 @@ public class SecurityConfig {
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        
+        // Read allowed origins from environment variable (comma separated)
+        String allowedOriginsEnv = System.getenv("ALLOWED_ORIGINS");
+        if (allowedOriginsEnv != null && !allowedOriginsEnv.isEmpty()) {
+            configuration.setAllowedOriginPatterns(Arrays.asList(allowedOriginsEnv.split(",")));
+        } else {
+            // Default for development
+            configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+        }
+        
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type",
                 "X-Requested-With", "Origin", "Accept", "X-Custom-Header"));
