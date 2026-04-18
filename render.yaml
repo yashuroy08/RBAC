@@ -6,9 +6,27 @@ services:
       - key: PORT
         value: 8081
       - key: SPRING_DATASOURCE_URL
+        value: jdbc:postgresql://${RBAC_DB_HOST}:${RBAC_DB_PORT}/${RBAC_DB_NAME}
+      - key: RBAC_DB_HOST
         fromDatabase:
           name: rbac-db
-          property: connectionString
+          property: host
+      - key: RBAC_DB_PORT
+        fromDatabase:
+          name: rbac-db
+          property: port
+      - key: RBAC_DB_NAME
+        fromDatabase:
+          name: rbac-db
+          property: database
+      - key: SPRING_DATASOURCE_USERNAME
+        fromDatabase:
+          name: rbac-db
+          property: user
+      - key: SPRING_DATASOURCE_PASSWORD
+        fromDatabase:
+          name: rbac-db
+          property: password
       - key: SPRING_DATASOURCE_DRIVER
         value: org.postgresql.Driver
       - key: SPRING_JPA_DIALECT
