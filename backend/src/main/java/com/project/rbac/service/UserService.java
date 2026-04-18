@@ -1,5 +1,6 @@
 package com.project.rbac.service;
 
+import com.project.rbac.dto.PasswordResetRequest;
 import com.project.rbac.dto.RegistrationRequest;
 import com.project.rbac.dto.UserResponse;
 import com.project.rbac.entity.Role;
@@ -206,7 +207,7 @@ public class UserService {
      * @param request Password reset request (email + new password)
      */
     @Transactional
-    public void resetPassword(com.project.rbac.dto.PasswordResetRequest request) {
+    public void resetPassword(PasswordResetRequest request) {
         log.info("Password reset requested for email: {}", request.getEmail());
 
         User user = userRepository.findByEmail(request.getEmail())

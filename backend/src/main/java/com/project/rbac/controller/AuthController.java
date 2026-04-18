@@ -263,7 +263,7 @@ public class AuthController {
     @PostMapping("/reset-password")
     @ApiOperation("Reset user password (prototype)")
     public ResponseEntity<ApiResponse> resetPassword(
-            @Valid @RequestBody com.project.rbac.dto.PasswordResetRequest request) {
+            @Valid @RequestBody PasswordResetRequest request) {
         try {
             userService.resetPassword(request);
             return ResponseEntity

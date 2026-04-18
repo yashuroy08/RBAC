@@ -99,6 +99,7 @@ yarn-debug.log*
 yarn-error.log*
 
 # Sensitive data (add custom patterns)
-*secret*
-*password*
-*credentials*
+# Avoid broad patterns that catch source files
+# *secret*
+# *password*
+# *credentials*
