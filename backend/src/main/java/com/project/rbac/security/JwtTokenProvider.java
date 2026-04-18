@@ -17,7 +17,7 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JwtTokenProvider {
 
-    @Value("${app.jwt.secret:antigravity_identity_super_secret_key_for_jwt_signing_2026}")
+    @Value("${JWT_SECRET:antigravity_identity_super_secret_key_for_jwt_signing_2026}")
     private String jwtSecret;
 
     @Value("${app.jwt.expiration-ms:86400000}") // 24 hours
