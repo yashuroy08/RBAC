@@ -3,6 +3,7 @@ package com.project.rbac.dto;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import java.util.List;
 
 /**
  * Risk Evaluation Response DTO
@@ -21,6 +22,7 @@ public class RiskEvaluationResponse {
     private String riskLevel; // LOW, MEDIUM, HIGH, CRITICAL
     private boolean thresholdExceeded;
     private boolean mfaRequired;
+    private List<String> riskFactors;
     private String mfaMessage;
     private String action; // NONE, SESSIONS_INVALIDATED
     private String message;

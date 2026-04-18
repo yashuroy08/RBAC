@@ -161,4 +161,26 @@ public class RiskEvaluatorController {
                     .body(ApiResponse.error(e.getMessage()));
         }
     }
+
+    /**
+     * Get risk status for ALL users
+     * 
+     * GET /api/risk/all-status
+     * 
+     * @return List of all risk scores
+     */
+    @GetMapping("/all-status")
+    @ApiOperation("Get risk status for all users")
+    public ResponseEntity<ApiResponse> getAllRiskStatus() {
+        try {
+            List<RiskEvaluationResponse> responses = riskEvaluatorService.getAllUsersRiskStatus();
+            return ResponseEntity.ok(ApiResponse.success(
+                    "All user risk data retrieved",
+                    responses));
+        } catch (Exception e) {
+            log.error("Error getting all risk data: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
 }

@@ -118,16 +118,18 @@ public class AuthService {
             session.removeAttribute("MFA_PENDING");
         }
 
-        return new AuthResult(userPrincipal, riskResponse);
+        return new AuthResult(userPrincipal, riskResponse, authentication);
     }
     
     public static class AuthResult {
         public final UserPrincipal userPrincipal;
         public final com.project.rbac.dto.RiskEvaluationResponse riskResponse;
+        public final Authentication authentication;
         
-        public AuthResult(UserPrincipal userPrincipal, com.project.rbac.dto.RiskEvaluationResponse riskResponse) {
+        public AuthResult(UserPrincipal userPrincipal, com.project.rbac.dto.RiskEvaluationResponse riskResponse, Authentication authentication) {
             this.userPrincipal = userPrincipal;
             this.riskResponse = riskResponse;
+            this.authentication = authentication;
         }
     }
 
@@ -257,6 +259,9 @@ public class AuthService {
      */
     private String getClientIpAddress(HttpServletRequest request) {
         String ip = request.getHeader("X-Forwarded-For");
+        if (ip != null && ip.contains(",")) {
+            ip = ip.split(",")[0].trim();
+        }
         if (ip == null || ip.isEmpty() || "unknown".equalsIgnoreCase(ip)) {
             ip = request.getHeader("Proxy-Client-IP");
         }

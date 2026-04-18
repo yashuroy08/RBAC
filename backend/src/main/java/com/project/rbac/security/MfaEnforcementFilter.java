@@ -33,6 +33,8 @@ public class MfaEnforcementFilter extends OncePerRequestFilter {
             path.contains("/api/auth/logout") || 
             path.contains("/api/auth/login") ||
             path.contains("/api/auth/health") ||
+            path.contains("/api/auth/me") ||
+            path.contains("/api/auth/trusted-devices") ||
             path.contains("/swagger-ui") ||
             path.contains("/v2/api-docs")) {
             filterChain.doFilter(request, response);

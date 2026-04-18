@@ -11,13 +11,20 @@ import javax.persistence.*;
 import java.time.LocalDateTime;
 import java.util.HashSet;
 import java.util.Set;
+import java.util.UUID;
 
 /**
  * User Entity - Represents application users
  * Contains user credentials and role associations
+ * 
+ * Security note: The internal `id` (Long) is used for JPA relationships.
+ * The `publicId` (UUID) is exposed in APIs to prevent IDOR vulnerabilities.
  */
 @Entity
-@Table(name = "users")
+@Table(name = "users", indexes = {
+        @Index(name = "idx_user_email", columnList = "email", unique = true),
+        @Index(name = "idx_user_username", columnList = "username", unique = true)
+})
 @Getter
 @Setter
 @NoArgsConstructor
@@ -29,6 +36,13 @@ public class User {
     @Id
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
+
+    /**
+     * Universally Unique Identifier — exposed in all public APIs as the user's identity.
+     * Auto-generated at entity creation. Never changes.
+     */
+    @Column(name = "public_id", length = 36)
+    private String publicId;
 
     @Column(nullable = false, unique = true, length = 50)
     private String username;
@@ -82,6 +96,9 @@ public class User {
 
     @PrePersist
     protected void onCreate() {
+        if (publicId == null || publicId.isBlank()) {
+            publicId = UUID.randomUUID().toString();
+        }
         createdAt = LocalDateTime.now();
         updatedAt = LocalDateTime.now();
     }

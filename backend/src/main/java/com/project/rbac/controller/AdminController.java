@@ -3,6 +3,8 @@ package com.project.rbac.controller;
 import com.project.rbac.dto.ApiResponse;
 import com.project.rbac.dto.LocationConfigDTO;
 import com.project.rbac.dto.UserResponse;
+import com.project.rbac.entity.AuditLog;
+import com.project.rbac.service.AuditLogService;
 import com.project.rbac.service.LocationService;
 import com.project.rbac.service.UserService;
 import io.swagger.annotations.Api;
@@ -34,6 +36,7 @@ public class AdminController {
 
     private final UserService userService;
     private final LocationService locationService;
+    private final AuditLogService auditLogService;
 
     // ========================
     // USER MANAGEMENT ENDPOINTS
@@ -74,6 +77,9 @@ public class AdminController {
     public ResponseEntity<ApiResponse> assignAdminRole(@PathVariable Long userId) {
         try {
             UserResponse user = userService.assignAdminRole(userId);
+            auditLogService.logEvent("ADMIN", "ROLE_ELEVATED", "WARNING", 
+                null, user.getUsername(), "Assigned ADMIN role to user", 
+                "{\"userId\":" + userId + "}", "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success(
                     "ADMIN role assigned successfully",
                     user));
@@ -97,6 +103,9 @@ public class AdminController {
     public ResponseEntity<ApiResponse> removeAdminRole(@PathVariable Long userId) {
         try {
             UserResponse user = userService.removeAdminRole(userId);
+            auditLogService.logEvent("ADMIN", "ROLE_REVOKED", "INFO", 
+                null, user.getUsername(), "Removed ADMIN role from user", 
+                "{\"userId\":" + userId + "}", "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success(
                     "ADMIN role removed successfully",
                     user));
@@ -120,6 +129,9 @@ public class AdminController {
     public ResponseEntity<ApiResponse> lockUser(@PathVariable Long userId) {
         try {
             userService.lockUserAccount(userId);
+            auditLogService.logEvent("ADMIN", "USER_LOCKED", "WARNING", 
+                null, "User ID " + userId, "Manually locked user account", 
+                "{\"userId\":" + userId + "}", "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success("User account locked successfully"));
         } catch (Exception e) {
             log.error("Error locking user: {}", e.getMessage());
@@ -141,6 +153,9 @@ public class AdminController {
     public ResponseEntity<ApiResponse> unlockUser(@PathVariable Long userId) {
         try {
             userService.unlockUserAccount(userId);
+            auditLogService.logEvent("ADMIN", "USER_UNLOCKED", "INFO", 
+                null, "User ID " + userId, "Manually unlocked user account", 
+                "{\"userId\":" + userId + "}", "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success("User account unlocked successfully"));
         } catch (Exception e) {
             log.error("Error unlocking user: {}", e.getMessage());
@@ -184,6 +199,27 @@ public class AdminController {
                     "Location removed from user", user));
         } catch (Exception e) {
             log.error("Error removing location from user: {}", e.getMessage());
+            return ResponseEntity.badRequest()
+                    .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    /**
+     * Delete a user account
+     * 
+     * DELETE /api/admin/users/{userId}
+     * 
+     * @param userId User ID
+     * @return Success message
+     */
+    @DeleteMapping("/users/{userId}")
+    @ApiOperation("Delete a user account")
+    public ResponseEntity<ApiResponse> deleteUser(@PathVariable Long userId) {
+        try {
+            userService.deleteUser(userId);
+            return ResponseEntity.ok(ApiResponse.success("User deleted successfully"));
+        } catch (Exception e) {
+            log.error("Error deleting user: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
         }
@@ -285,11 +321,40 @@ public class AdminController {
     public ResponseEntity<ApiResponse> deleteLocationConfig(@PathVariable Long configId) {
         try {
             locationService.deleteConfig(configId);
+            auditLogService.logEvent("CONFIG", "GEOFENCE_DELETED", "WARNING", 
+                null, null, "Deleted location configuration: " + configId, 
+                "{\"configId\":" + configId + "}", "SUCCESS");
             return ResponseEntity.ok(ApiResponse.success("Location configuration deleted"));
         } catch (Exception e) {
             log.error("Error deleting location config: {}", e.getMessage());
             return ResponseEntity.badRequest()
                     .body(ApiResponse.error(e.getMessage()));
+        }
+    }
+
+    // ========================
+    // AUDIT LOG ENDPOINTS
+    // ========================
+
+    /**
+     * Get or search audit logs
+     * 
+     * GET /api/admin/audit-logs
+     */
+    @GetMapping("/audit-logs")
+    @ApiOperation("Get recent or search audit logs")
+    public ResponseEntity<ApiResponse> getAuditLogs(@RequestParam(required = false) String search) {
+        try {
+            List<AuditLog> logs;
+            if (search != null && !search.trim().isEmpty()) {
+                logs = auditLogService.searchLogs(search);
+            } else {
+                logs = auditLogService.getRecentLogs();
+            }
+            return ResponseEntity.ok(ApiResponse.success("Audit logs retrieved", logs));
+        } catch (Exception e) {
+            log.error("Error getting audit logs: {}", e.getMessage());
+            return ResponseEntity.badRequest().body(ApiResponse.error(e.getMessage()));
         }
     }
 }

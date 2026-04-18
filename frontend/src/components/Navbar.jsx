@@ -1,51 +1,90 @@
-import { Link, useNavigate } from 'react-router-dom';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
-import { LogOut, Shield, User, Grid } from 'lucide-react';
+import { LogOut, Shield, Grid, Settings } from 'lucide-react';
 
 const Navbar = () => {
     const { user, logout, isAdmin } = useAuth();
     const navigate = useNavigate();
+    const location = useLocation();
 
     const handleLogout = async () => {
         await logout();
         navigate('/login');
     };
 
+    const isActive = (path) => location.pathname === path;
+
     return (
-        <nav className="sticky top-0 z-50 backdrop-blur-md bg-dark-card/80 border-b border-dark-border py-4 px-6 mb-8 shadow-sm">
-            <div className="max-w-7xl mx-auto flex items-center justify-between">
-                <Link to="/dashboard" className="flex items-center gap-3 transition-all hover:scale-105">
-                    <div className="flex items-center justify-center bg-primary/20 text-primary p-2 rounded-xl backdrop-blur-sm shadow-[0_0_15px_rgba(37,99,235,0.3)]">
-                        <Shield size={24} />
+        <nav className="sticky top-0 z-50 border-b py-0 mb-0" style={{
+            background: 'rgba(12, 20, 32, 0.85)',
+            backdropFilter: 'blur(16px)',
+            WebkitBackdropFilter: 'blur(16px)',
+            borderColor: 'var(--color-border-subtle)',
+        }}>
+            <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex items-center justify-between h-14">
+                {/* Brand */}
+                <Link to="/dashboard" className="flex items-center gap-2.5 group">
+                    <div className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{
+                            background: 'linear-gradient(135deg, var(--color-command) 0%, var(--color-signal) 100%)',
+                            boxShadow: '0 0 12px var(--color-signal-glow)',
+                        }}>
+                        <Shield size={16} className="text-white" />
                     </div>
-                    <span className="text-xl font-bold tracking-wider text-light-text select-none">RBAC System</span>
+                    <span className="text-sm font-bold tracking-wide text-canvas select-none hidden sm:inline">
+                        RBAC<span className="text-text-muted font-medium ml-1">System</span>
+                    </span>
                 </Link>
 
-                <div className="flex items-center gap-6">
-                    <Link to="/dashboard" className="flex items-center gap-2 text-dark-text-muted hover:text-primary transition-colors font-medium">
-                        <Grid size={18} /> Dashboard
+                {/* Navigation Links */}
+                <div className="flex items-center gap-1">
+                    <Link
+                        to="/dashboard"
+                        className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                            isActive('/dashboard')
+                                ? 'text-signal bg-signal/10'
+                                : 'text-text-muted hover:text-canvas hover:bg-white/5'
+                        }`}
+                    >
+                        <Grid size={14} /> Dashboard
                     </Link>
                     {isAdmin() && (
-                        <Link to="/admin" className="flex items-center gap-2 text-dark-text-muted hover:text-primary transition-colors font-medium">
-                            <User size={18} /> Admin
+                        <Link
+                            to="/admin"
+                            className={`flex items-center gap-1.5 px-3 py-1.5 rounded-md text-xs font-semibold transition-all ${
+                                isActive('/admin')
+                                    ? 'text-signal bg-signal/10'
+                                    : 'text-text-muted hover:text-canvas hover:bg-white/5'
+                            }`}
+                        >
+                            <Settings size={14} /> Admin
                         </Link>
                     )}
                 </div>
 
-                <div className="flex items-center gap-5">
-                    <div className="flex items-center gap-3 bg-dark-bg/50 px-4 py-2 rounded-full border border-dark-border">
-                        <div className="flex items-center justify-center w-8 h-8 rounded-full bg-primary/20 text-primary font-bold text-sm ring-1 ring-primary/40">
+                {/* User + Logout */}
+                <div className="flex items-center gap-3">
+                    <div className="flex items-center gap-2 px-3 py-1 rounded-md border"
+                        style={{
+                            background: 'rgba(15, 28, 46, 0.6)',
+                            borderColor: 'var(--color-border-subtle)',
+                        }}>
+                        <div className="w-6 h-6 rounded flex items-center justify-center text-[10px] font-bold"
+                            style={{
+                                background: 'linear-gradient(135deg, var(--color-command) 0%, var(--color-signal) 100%)',
+                                color: 'white',
+                            }}>
                             {user?.username?.charAt(0).toUpperCase()}
                         </div>
-                        <span className="font-medium text-sm text-light-text">{user?.username}</span>
+                        <span className="text-xs font-medium text-canvas hidden sm:inline">{user?.username}</span>
                     </div>
 
-                    <button 
-                        onClick={handleLogout} 
-                        className="p-2 text-dark-text-muted hover:text-danger hover:bg-danger/10 rounded-lg transition-all" 
+                    <button
+                        onClick={handleLogout}
+                        className="p-1.5 text-text-muted hover:text-crit-solid hover:bg-crit-solid/10 rounded-md transition-all"
                         title="Logout"
                     >
-                        <LogOut size={20} />
+                        <LogOut size={16} />
                     </button>
                 </div>
             </div>

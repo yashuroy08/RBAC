@@ -19,6 +19,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import javax.servlet.http.HttpSession;
 import java.time.LocalDateTime;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.stream.Collectors;
@@ -83,6 +84,7 @@ public class RiskEvaluatorService {
 
         userSession.setUser(user);
         userSession.setDeviceId(deviceId);
+        userSession.setDeviceName(deviceName);
         userSession.setIpAddress(ipAddress);
         userSession.setLoginTime(LocalDateTime.now());
         userSession.setActive(true);
@@ -180,6 +182,28 @@ public class RiskEvaluatorService {
         response.setAllowedSessions(maxAllowedSessions);
         response.setRiskScore(riskScore);
         response.setRiskLevel(determineRiskLevel(activeSessions, maxAllowedSessions));
+
+        // Populating Dynamic Factors
+        List<String> factors = new ArrayList<>();
+        if (activeSessions > maxAllowedSessions) factors.add("Session Capacity Exceeded");
+        if (activeSessions == maxAllowedSessions) factors.add("At Velocity Limit");
+        
+        // Check for untrusted devices in active sessions
+        List<UserSession> sessions = userSessionRepository.findActiveSessionsByUserId(userId);
+        boolean hasUntrusted = false;
+        for (UserSession s : sessions) {
+            boolean isTrusted = trustedDeviceRepository.findByUserIdAndDeviceId(userId, s.getDeviceId())
+                    .map(td -> td.isTrusted()).orElse(false);
+            if (!isTrusted) {
+                hasUntrusted = true;
+                break;
+            }
+        }
+        
+        if (hasUntrusted) factors.add("Unrecognized Device Access");
+        if (factors.isEmpty()) factors.add("Baseline Heuristics Normal");
+        response.setRiskFactors(factors);
+        response.setMfaRequired(hasUntrusted || activeSessions > maxAllowedSessions);
 
         // ACTION TRIGGER: Invalidate sessions when the limit is exceeded.
         // We trigger enforcement only if the number of active sessions exceeds our hard limit.
@@ -446,6 +470,29 @@ public class RiskEvaluatorService {
         response.setRiskScore(riskScore);
         response.setRiskLevel(determineRiskLevel(activeSessions, maxAllowedSessions));
         response.setThresholdExceeded(activeSessions > maxAllowedSessions);
+        
+        // Populating Dynamic Factors
+        List<String> factors = new ArrayList<>();
+        if (activeSessions > maxAllowedSessions) factors.add("Session Capacity Exceeded");
+        if (activeSessions == maxAllowedSessions) factors.add("High Connection Load");
+        
+        // Check for untrusted devices
+        List<UserSession> sessions = userSessionRepository.findActiveSessionsByUserId(userId);
+        boolean hasUntrusted = false;
+        for (UserSession s : sessions) {
+            boolean isTrusted = trustedDeviceRepository.findByUserIdAndDeviceId(userId, s.getDeviceId())
+                    .map(td -> td.isTrusted()).orElse(false);
+            if (!isTrusted) {
+                hasUntrusted = true;
+                break;
+            }
+        }
+        if (hasUntrusted) factors.add("Untrusted Terminal Detection");
+        if (factors.isEmpty()) factors.add("Static Identity Consistent");
+        
+        response.setRiskFactors(factors);
+        response.setMfaRequired(hasUntrusted || activeSessions > maxAllowedSessions);
+        
         response.setAction("NONE");
         response.setMessage("Current risk evaluation (read-only)");
 
@@ -485,6 +532,7 @@ public class RiskEvaluatorService {
         dto.setId(session.getId());
         dto.setSessionId(session.getSessionId());
         dto.setDeviceId(session.getDeviceId());
+        dto.setDeviceName(session.getDeviceName());
         dto.setIpAddress(session.getIpAddress());
         dto.setLoginTime(session.getLoginTime());
         dto.setLastAccessedTime(session.getLastAccessedTime());
@@ -502,5 +550,17 @@ public class RiskEvaluatorService {
     @Transactional(readOnly = true)
     public List<RiskEvent> getRecentRiskEvents(Long userId, int limit) {
         return riskEventRepository.findRecentEventsByUserId(userId, limit);
+    }
+
+    /**
+     * Get risk evaluation for ALL users
+     * 
+     * @return List of RiskEvaluationResponse
+     */
+    @Transactional(readOnly = true)
+    public List<RiskEvaluationResponse> getAllUsersRiskStatus() {
+        return userRepository.findAll().stream()
+                .map(user -> getRiskEvaluation(user.getId()))
+                .collect(Collectors.toList());
     }
 }

@@ -5,6 +5,9 @@ import Register from './pages/Register';
 import ResetPassword from './pages/ResetPassword';
 import Dashboard from './pages/Dashboard';
 import AdminPanel from './pages/AdminPanel';
+import SaaSLandingPage from './pages/SaaSLandingPage';
+import MathematicalLoader from './components/MathematicalLoader';
+import { useInactivityTimeout } from './hooks/useInactivityTimeout';
 import './index.css';
 
 // Protected Route Component
@@ -12,11 +15,7 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
     const { user, loading, isAdmin } = useAuth();
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-bg-deep flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            </div>
-        );
+        return <MathematicalLoader text="Authenticating Session" />;
     }
 
     if (!user) {
@@ -32,21 +31,25 @@ const ProtectedRoute = ({ children, adminOnly = false }) => {
 
 // App Routes
 function AppRoutes() {
-    const { user, loading } = useAuth();
+    const { user, loading, logout } = useAuth();
+
+    // Auto-logout after 30 minutes of inactivity
+    useInactivityTimeout(() => {
+        if (user) {
+            console.warn('Inactivity timeout reached. Logging out...');
+            logout();
+        }
+    }, 30 * 60 * 1000); // 30 minutes
 
     if (loading) {
-        return (
-            <div className="min-h-screen bg-bg-deep flex items-center justify-center">
-                <div className="w-12 h-12 border-4 border-primary/30 border-t-primary rounded-full animate-spin"></div>
-            </div>
-        );
+        return <MathematicalLoader text="Initializing Core Systems" />;
     }
 
     return (
         <Routes>
             <Route
                 path="/"
-                element={user ? <Navigate to="/dashboard" replace /> : <Navigate to="/login" replace />}
+                element={<SaaSLandingPage />}
             />
             <Route
                 path="/login"
@@ -83,7 +86,7 @@ function AppRoutes() {
 
 function App() {
     return (
-        <BrowserRouter>
+        <BrowserRouter future={{ v7_startTransition: true, v7_relativeSplatPath: true }}>
             <AuthProvider>
                 <AppRoutes />
             </AuthProvider>

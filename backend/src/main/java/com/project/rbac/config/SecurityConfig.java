@@ -39,6 +39,7 @@ public class SecurityConfig {
 
     private final CustomUserDetailsService customUserDetailsService;
     private final com.project.rbac.security.MfaEnforcementFilter mfaEnforcementFilter;
+    private final com.project.rbac.security.JwtAuthenticationFilter jwtAuthenticationFilter;
 
     /**
      * BCrypt Password Encoder Bean
@@ -94,12 +95,16 @@ public class SecurityConfig {
                 .cors().and()
 
                 // CSRF Configuration
-                // NOTE: Disabled for easier REST API testing with Postman
-                // In production with web frontend, enable CSRF protection
-                .csrf().disable()
+                // NOTE: Enabled using CookieCsrfTokenRepository for React frontend
+                .csrf()
+                .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
+                .and()
 
                 // MFA Enforcement Filter
                 .addFilterAfter(mfaEnforcementFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                
+                // JWT Authentication Filter
+                .addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
 
                 // Session Management Configuration
                 .sessionManagement()
@@ -180,8 +185,13 @@ public class SecurityConfig {
         if (allowedOriginsEnv != null && !allowedOriginsEnv.isEmpty()) {
             configuration.setAllowedOriginPatterns(Arrays.asList(allowedOriginsEnv.split(",")));
         } else {
-            // Default for development
-            configuration.setAllowedOriginPatterns(Collections.singletonList("*"));
+            // Default for development & Production Ecommerce App
+            configuration.setAllowedOrigins(Arrays.asList(
+                "http://localhost:3000",
+                "http://localhost:5173",
+                "https://threads-fashion.vercel.app",
+                "https://threads-fashion-backend.onrender.com"
+            ));
         }
         
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));

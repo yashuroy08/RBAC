@@ -98,31 +98,41 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
                         animate={{ opacity: 1 }}
                         exit={{ opacity: 0 }}
                         onClick={onClose}
-                        className="absolute inset-0 bg-slate-950/80 backdrop-blur-sm"
+                        className="absolute inset-0"
+                        style={{ background: 'rgba(8, 14, 24, 0.85)', backdropFilter: 'blur(8px)' }}
                     />
 
                     {/* Modal */}
                     <motion.div
-                        initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                        initial={{ opacity: 0, scale: 0.95, y: 16 }}
                         animate={{ opacity: 1, scale: 1, y: 0 }}
-                        exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                        className="glass-card w-full max-w-md p-8 relative z-10 border-primary/20"
+                        exit={{ opacity: 0, scale: 0.95, y: 16 }}
+                        className="glass-card w-full max-w-md p-8 relative z-10"
+                        style={{ borderColor: 'rgba(83, 74, 183, 0.20)' }}
                     >
                         <button
                             onClick={onClose}
-                            className="absolute right-6 top-6 text-slate-400 hover:text-white transition-colors"
+                            className="absolute right-5 top-5 text-text-muted hover:text-canvas transition-colors"
                         >
-                            <X size={20} />
+                            <X size={18} />
                         </button>
 
                         <div className="text-center mb-8">
-                            <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 shadow-[0_0_20px_var(--color-primary-glow)]">
-                                {success ? <CheckCircle2 size={32} /> : <Smartphone size={32} />}
+                            <div className="w-14 h-14 mx-auto rounded-xl flex items-center justify-center mb-5"
+                                style={{
+                                    background: success
+                                        ? 'linear-gradient(135deg, var(--color-safe) 0%, var(--color-safe-text) 100%)'
+                                        : 'linear-gradient(135deg, var(--color-verified) 0%, var(--color-trusted) 100%)',
+                                    boxShadow: success
+                                        ? '0 0 24px rgba(99, 153, 34, 0.2)'
+                                        : '0 0 24px rgba(83, 74, 183, 0.2)',
+                                }}>
+                                {success ? <CheckCircle2 size={24} className="text-white" /> : <Smartphone size={24} className="text-white" />}
                             </div>
-                            <h2 className="text-2xl font-semibold text-light-text mb-2">
+                            <h2 className="text-xl font-bold text-canvas mb-1.5">
                                 {success ? 'Verified Successfully' : 'Verify Your Identity'}
                             </h2>
-                            <p className="text-text-muted text-sm px-4">
+                            <p className="text-xs text-text-muted px-4 leading-relaxed">
                                 {success 
                                     ? 'Your device is now trusted. Redirecting to dashboard...' 
                                     : 'A 6-digit verification code was sent to your email. Check backend logs for mock OTP.'}
@@ -130,7 +140,7 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
                         </div>
 
                         {!success && (
-                            <form onSubmit={handleSubmit} className="space-y-6">
+                            <form onSubmit={handleSubmit} className="space-y-5">
                                 <div className="flex justify-between gap-2 max-w-[280px] mx-auto">
                                     {otp.map((digit, index) => (
                                         <input
@@ -142,45 +152,52 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
                                             onChange={(e) => handleChange(index, e.target.value)}
                                             onKeyDown={(e) => handleKeyDown(index, e)}
                                             onPaste={handlePaste}
-                                            className="w-10 h-12 bg-slate-900/50 border border-slate-700/50 rounded-lg text-center text-xl font-bold text-white focus:border-primary focus:ring-1 focus:ring-primary outline-none transition-all"
+                                            className="w-10 h-12 rounded-lg text-center text-lg font-bold font-mono text-canvas transition-all"
+                                            style={{
+                                                background: 'var(--color-bg-elevated)',
+                                                border: digit ? '1.5px solid var(--color-verified)' : '1px solid var(--color-border-subtle)',
+                                                boxShadow: digit ? '0 0 8px rgba(83, 74, 183, 0.15)' : 'none',
+                                            }}
                                         />
                                     ))}
                                 </div>
 
                                 {error && (
                                     <motion.div
-                                        initial={{ opacity: 0, y: -10 }}
+                                        initial={{ opacity: 0, y: -8 }}
                                         animate={{ opacity: 1, y: 0 }}
-                                        className="p-3 rounded-lg bg-red-500/10 border border-red-500/20 text-red-500 text-sm flex items-center gap-2"
+                                        className="p-3 rounded-lg text-xs flex items-center gap-2"
+                                        style={{ background: 'var(--color-crit-bg)', color: 'var(--color-crit-text)' }}
                                     >
-                                        <AlertCircle size={16} />
-                                        <span>{error}</span>
+                                        <AlertCircle size={14} />
+                                        <span className="font-semibold">{error}</span>
                                     </motion.div>
                                 )}
 
                                 <button
                                     type="submit"
                                     disabled={loading}
-                                    className="btn btn-primary w-full h-12 flex items-center justify-center gap-2 group"
+                                    className="btn w-full h-11 flex items-center justify-center gap-2 text-white group"
+                                    style={{ background: 'linear-gradient(135deg, var(--color-verified) 0%, var(--color-trusted) 100%)' }}
                                 >
                                     {loading ? (
-                                        <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                        <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
                                     ) : (
                                         <>
                                             Verify & Trust Device
-                                            <ArrowRight size={18} className="translate-x-0 group-hover:translate-x-1 transition-transform" />
+                                            <ArrowRight size={14} className="translate-x-0 group-hover:translate-x-1 transition-transform" />
                                         </>
                                     )}
                                 </button>
 
-                                <div className="text-center text-sm text-text-muted">
+                                <div className="text-center text-xs text-text-muted">
                                     Didn't receive the code?{' '}
                                     <button
                                         type="button"
-                                        className="text-primary hover:text-indigo-400 font-medium"
+                                        className="font-semibold transition-colors"
+                                        style={{ color: 'var(--color-verified)' }}
                                         onClick={() => {
                                             setError('Mock OTP reset. Check backend logs again.');
-                                            // Optional: Trigger resend API
                                         }}
                                     >
                                         Resend Code
@@ -189,8 +206,9 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
                             </form>
                         )}
 
-                        <div className="mt-8 pt-6 border-t border-slate-800/50 flex items-center justify-center gap-2 text-[10px] text-text-muted uppercase tracking-[0.2em]">
-                            <ShieldCheck size={12} className="text-emerald-500" />
+                        <div className="mt-6 pt-4 flex items-center justify-center gap-1.5 text-[10px] text-text-muted uppercase tracking-widest"
+                            style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+                            <ShieldCheck size={10} style={{ color: 'var(--color-safe)' }} />
                             <span>Encrypted Security Verification</span>
                         </div>
                     </motion.div>

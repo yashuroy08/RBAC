@@ -46,6 +46,8 @@ export const adminAPI = {
     unlockUser: (userId) => api.post(`/admin/users/${userId}/unlock`),
     assignLocationToUser: (userId, locationId) => api.post(`/admin/users/${userId}/assign-location/${locationId}`),
     removeLocationFromUser: (userId) => api.post(`/admin/users/${userId}/remove-location`),
+    deleteUser: (userId) => api.delete(`/admin/users/${userId}`),
+    getAllRiskData: () => api.get('/risk/all-status'),
 
     // Location management
     getActiveLocationConfig: () => api.get('/admin/location/active'),
@@ -54,6 +56,7 @@ export const adminAPI = {
     toggleLocationRestriction: (configId, enabled) =>
         api.put(`/admin/location/${configId}/toggle?enabled=${enabled}`),
     deleteLocationConfig: (configId) => api.delete(`/admin/location/${configId}`),
+    getAuditLogs: (search) => api.get(`/admin/audit-logs${search ? '?search=' + encodeURIComponent(search) : ''}`),
 };
 
 export const riskAPI = {

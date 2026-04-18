@@ -1,123 +1,256 @@
 @import "tailwindcss";
 
+/* ═══════════════════════════════════════════════════
+   RBAC Risk Evaluator — Structured Utility Design System
+   Based on: rbac_product_strategy.html visual identity
+   ═══════════════════════════════════════════════════ */
+
 @theme {
-  --color-bg-deep: #05050a;
-  --color-bg-dark: #0a0a0f;
-  --color-bg-card: rgba(15, 23, 42, 0.4);
-  --color-bg-card-hover: rgba(15, 23, 42, 0.6);
+  /* ── Primary — Deep Navy Authority ── */
+  --color-abyss: #0F1C2E;
+  --color-midnight: #1A2E4A;
+  --color-command: #185FA5;
+  --color-signal: #378ADD;
+  --color-signal-glow: rgba(55, 138, 221, 0.15);
 
-  --color-primary: #2563eb; /* Deeper, more professional blue */
-  --color-primary-glow: rgba(37, 99, 235, 0.15);
-  --color-secondary: #4f46e5; /* Deeper indigo */
-  --color-accent: #7c3aed; /* Deeper violet */
-  --color-info: #0ea5e9;
+  /* ── Status — Risk Levels (traffic-light) ── */
+  --color-safe: #639922;
+  --color-safe-bg: #EAF3DE;
+  --color-safe-text: #3B6D11;
+  --color-warn: #BA7517;
+  --color-warn-bg: #FAEEDA;
+  --color-warn-text: #854F0B;
+  --color-crit: #A32D2D;
+  --color-crit-bg: #FCEBEB;
+  --color-crit-text: #A32D2D;
+  --color-crit-solid: #E24B4A;
 
-  --color-success: #059669; /* Muted emerald */
-  --color-warning: #d97706; /* Muted amber */
-  --color-danger: #dc2626; /* Pro red */
-  --color-danger-glow: rgba(220, 38, 38, 0.12);
+  /* ── Accent — MFA & Trust States ── */
+  --color-pending-bg: #EEEDFE;
+  --color-pending-text: #3C3489;
+  --color-verified: #534AB7;
+  --color-trusted: #26215C;
 
-  --color-text-main: #94a3b8; /* Slate 400 */
-  --color-text-muted: #64748b; /* Slate 500 */
-  --color-light-text: #bac5d4; /* Softest, dimmed blue-grey to prevent glare */
-  --color-dark-text-muted: #475569; /* Slate 600 */
-  
-  --color-dark-bg: #0f172a; /* Slate 900 */
-  --color-dark-border: rgba(255, 255, 255, 0.05);
+  /* ── Neutral — Surfaces & Type ── */
+  --color-canvas: #F1EFE8;
+  --color-mist: #D3D1C7;
+  --color-ash: #888780;
+  --color-carbon: #2C2C2A;
+
+  /* ── Semantic Aliases ── */
+  --color-bg-deep: #080E18;
+  --color-bg-base: #0C1420;
+  --color-bg-card: rgba(15, 28, 46, 0.50);
+  --color-bg-card-hover: rgba(26, 46, 74, 0.60);
+  --color-bg-elevated: #111D2E;
+
+  --color-primary: #378ADD;
+  --color-primary-glow: rgba(55, 138, 221, 0.12);
+  --color-secondary: #534AB7;
+  --color-accent: #185FA5;
+
+  --color-success: #639922;
+  --color-warning: #BA7517;
+  --color-danger: #E24B4A;
+  --color-danger-glow: rgba(226, 75, 74, 0.12);
+  --color-info: #378ADD;
+
+  --color-text-main: #D3D1C7;
+  --color-text-muted: #888780;
+  --color-light-text: #F1EFE8;
+  --color-dark-text-muted: #6B6A64;
+
+  --color-dark-bg: #0F1C2E;
+  --color-dark-border: rgba(255, 255, 255, 0.07);
   --color-border-subtle: rgba(255, 255, 255, 0.06);
-  --color-border-glow: rgba(59, 130, 246, 0.2);
+  --color-border-glow: rgba(55, 138, 221, 0.25);
 
-  --font-main: "Outfit", "Inter", sans-serif;
-  
-  --shadow-glow: 0 0 25px var(--color-primary-glow);
-  --shadow-card: 0 10px 40px -10px rgba(0, 0, 0, 0.5);
+  --font-main: "Inter", "system-ui", sans-serif;
+  --font-mono: "JetBrains Mono", "SF Mono", "Cascadia Code", monospace;
+
+  --shadow-glow: 0 0 20px var(--color-primary-glow);
+  --shadow-card: 0 8px 32px -8px rgba(0, 0, 0, 0.5);
+  --shadow-elevated: 0 16px 48px -12px rgba(0, 0, 0, 0.6);
 }
 
 @layer base {
   body {
-    @apply bg-bg-deep text-text-main font-main antialiased min-h-screen overflow-x-hidden;
+    @apply bg-bg-deep text-text-main antialiased min-h-screen overflow-x-hidden;
+    font-family: var(--font-main);
     background-image:
-      radial-gradient(circle at 15% 50%, rgba(0, 102, 255, 0.10) 0%, transparent 35%),
-      radial-gradient(circle at 85% 30%, rgba(0, 229, 255, 0.08) 0%, transparent 35%);
+      radial-gradient(ellipse at 10% 0%, rgba(24, 95, 165, 0.08) 0%, transparent 50%),
+      radial-gradient(ellipse at 90% 100%, rgba(83, 74, 183, 0.05) 0%, transparent 50%);
   }
 
-  button, 
+  button,
   [role="button"],
   .cursor-pointer {
     cursor: pointer !important;
   }
 
+  ::selection {
+    background: rgba(55, 138, 221, 0.30);
+    color: #F1EFE8;
+  }
+
   ::-webkit-scrollbar {
-    width: 6px;
+    width: 5px;
   }
   ::-webkit-scrollbar-track {
-    @apply bg-bg-deep;
+    background: var(--color-bg-deep);
   }
   ::-webkit-scrollbar-thumb {
-    @apply bg-bg-card-hover rounded-full;
+    background: var(--color-midnight);
+    border-radius: 99px;
   }
   ::-webkit-scrollbar-thumb:hover {
-    @apply bg-primary;
+    background: var(--color-command);
+  }
+
+  /* mono utility for session IDs, device hashes */
+  .font-mono {
+    font-family: var(--font-mono) !important;
   }
 }
 
 @layer components {
+  /* ── Glass Card ── */
   .glass-card {
-    @apply bg-bg-card border border-border-subtle rounded-2xl shadow-card backdrop-blur-md transition-all duration-300;
+    background: var(--color-bg-card);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 12px;
+    box-shadow: var(--shadow-card);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   }
   .glass-card:hover {
-    @apply border-border-glow translate-y-[-2px];
-    box-shadow: 0 0 30px rgba(0, 102, 255, 0.2);
+    border-color: var(--color-border-glow);
   }
 
+  /* ── Buttons ── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-6 py-3 rounded-xl font-semibold cursor-pointer transition-all duration-200 border-none select-none;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 font-semibold text-sm transition-all duration-200 border-none select-none;
+    border-radius: 8px;
+    cursor: pointer;
   }
-  
+
   .btn-primary {
-    @apply text-white shadow-md hover:shadow-lg hover:-translate-y-[1px];
-    background: var(--color-primary);
+    @apply text-white shadow-md;
+    background: linear-gradient(135deg, var(--color-command) 0%, var(--color-signal) 100%);
   }
-  
   .btn-primary:hover {
     box-shadow: var(--shadow-glow);
+    transform: translateY(-1px);
   }
 
   .btn-secondary {
-    @apply bg-white/5 text-text-main border border-border-subtle hover:bg-white/10 hover:border-text-muted;
+    background: rgba(255, 255, 255, 0.04);
+    color: var(--color-text-main);
+    border: 1px solid var(--color-border-subtle) !important;
   }
-  
-  .btn-danger {
-    @apply text-white;
-    background: linear-gradient(135deg, var(--color-danger) 0%, #dc2626 100%);
-    box-shadow: 0 4px 15px var(--color-danger-glow);
+  .btn-secondary:hover {
+    background: rgba(255, 255, 255, 0.08);
+    border-color: var(--color-text-muted) !important;
   }
 
+  .btn-danger {
+    @apply text-white;
+    background: var(--color-crit-solid);
+    box-shadow: 0 4px 12px var(--color-danger-glow);
+  }
+  .btn-danger:hover {
+    box-shadow: 0 6px 20px rgba(226, 75, 74, 0.25);
+    transform: translateY(-1px);
+  }
+
+  /* ── Input Fields ── */
   .input-label {
-    @apply block mb-2 text-sm font-medium text-text-muted;
+    @apply block mb-1.5 text-xs font-semibold uppercase tracking-wider;
+    color: var(--color-text-muted);
+    letter-spacing: 0.06em;
   }
 
   .input-field {
-    @apply w-full py-3 px-4 bg-[#111111] border border-border-subtle rounded-xl text-text-main transition-all duration-200 focus:outline-none focus:border-primary focus:bg-slate-900/60 focus:ring-4 focus:ring-primary/20;
+    @apply w-full py-2.5 px-4 text-sm transition-all duration-200;
+    background: var(--color-bg-elevated);
+    border: 1px solid var(--color-border-subtle);
+    border-radius: 8px;
+    color: var(--color-light-text);
   }
-  
+  .input-field:focus {
+    outline: none;
+    border-color: var(--color-signal);
+    box-shadow: 0 0 0 3px var(--color-signal-glow);
+    background: var(--color-midnight);
+  }
+  .input-field::placeholder {
+    color: var(--color-dark-text-muted);
+  }
+
   .input-field-with-icon {
     @apply pl-10;
   }
 
+  /* ── Badges (traffic-light system) ── */
   .badge {
-    @apply px-3 py-1 rounded-full text-xs font-semibold tracking-wide uppercase inline-flex items-center;
+    @apply px-2.5 py-0.5 text-[11px] font-bold tracking-wide uppercase inline-flex items-center;
+    border-radius: 4px;
+    letter-spacing: 0.04em;
   }
   .badge-success {
-    @apply bg-emerald-500/15 text-emerald-500 border border-emerald-500/20;
+    background: var(--color-safe-bg);
+    color: var(--color-safe-text);
   }
   .badge-warning {
-    @apply bg-amber-500/15 text-amber-500 border border-amber-500/20;
+    background: var(--color-warn-bg);
+    color: var(--color-warn-text);
   }
   .badge-danger {
-    @apply bg-red-500/15 text-red-500 border border-red-500/20;
+    background: var(--color-crit-bg);
+    color: var(--color-crit-text);
   }
   .badge-info {
-    @apply bg-indigo-500/15 text-indigo-400 border border-indigo-500/20;
+    background: rgba(55, 138, 221, 0.12);
+    color: var(--color-signal);
+  }
+  .badge-mfa {
+    background: var(--color-pending-bg);
+    color: var(--color-pending-text);
+  }
+
+  /* ── Status Indicator Dot ── */
+  .status-dot {
+    width: 6px;
+    height: 6px;
+    border-radius: 50%;
+    flex-shrink: 0;
+  }
+  .status-dot-safe { background: var(--color-safe); }
+  .status-dot-warn { background: var(--color-warn); }
+  .status-dot-crit { background: var(--color-crit-solid); animation: pulse-dot 2s infinite; }
+
+  @keyframes pulse-dot {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.4; }
+  }
+
+  /* ── Risk Score Gauge ── */
+  .risk-gauge {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+  }
+
+  /* ── Section Label (from strategy doc) ── */
+  .sec-label {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--color-text-muted);
+    margin-bottom: 0.75rem;
   }
 }

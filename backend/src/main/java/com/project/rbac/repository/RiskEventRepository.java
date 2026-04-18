@@ -2,6 +2,7 @@ package com.project.rbac.repository;
 
 import com.project.rbac.entity.RiskEvent;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
@@ -43,4 +44,11 @@ public interface RiskEventRepository extends JpaRepository<RiskEvent, Long> {
      */
     @Query(value = "SELECT * FROM risk_events WHERE user_id = :userId ORDER BY event_time DESC OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY", nativeQuery = true)
     List<RiskEvent> findRecentEventsByUserId(@Param("userId") Long userId, @Param("limit") int limit);
+
+    /**
+     * Delete all risk events for a user (used during user deletion)
+     */
+    @Modifying
+    @Query("DELETE FROM RiskEvent re WHERE re.userId = :userId")
+    void deleteByUserId(@Param("userId") Long userId);
 }

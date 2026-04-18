@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion } from 'framer-motion';
-import { User, Lock, Eye, EyeOff, ShieldCheck, ArrowRight, AlertCircle, MapPin } from 'lucide-react';
+import { User, Lock, Eye, EyeOff, Shield, ArrowRight, AlertCircle, MapPin } from 'lucide-react';
 import MfaModal from '../components/MfaModal';
 
 const Login = () => {
@@ -60,117 +60,143 @@ const Login = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative">
-            {/* Background ambient glow */}
-            <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[600px] h-[600px] bg-primary/20 rounded-full blur-[120px] pointer-events-none -z-10" />
-            
+        <div className="min-h-screen flex items-center justify-center p-4 relative"
+            style={{ background: 'var(--color-bg-deep)' }}>
+            {/* Subtle ambient */}
+            <div className="absolute top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
+                <div className="absolute top-1/3 left-1/4 w-[500px] h-[500px] rounded-full blur-[140px]"
+                    style={{ background: 'rgba(24, 95, 165, 0.08)' }} />
+                <div className="absolute bottom-1/4 right-1/4 w-[400px] h-[400px] rounded-full blur-[120px]"
+                    style={{ background: 'rgba(83, 74, 183, 0.06)' }} />
+            </div>
+
             <motion.div
-                initial={{ opacity: 0, y: 20 }}
+                initial={{ opacity: 0, y: 16 }}
                 animate={{ opacity: 1, y: 0 }}
-                transition={{ duration: 0.5 }}
-                className="glass-card w-full max-w-md p-8 relative z-10"
+                transition={{ duration: 0.4, ease: 'easeOut' }}
+                className="w-full max-w-sm relative z-10"
             >
-                <div className="text-center mb-8">
-                    <div className="w-16 h-16 mx-auto bg-primary/10 rounded-2xl flex items-center justify-center text-primary mb-6 shadow-[0_0_20px_var(--color-primary-glow)]">
-                        <ShieldCheck size={32} />
+                {/* Card */}
+                <div className="glass-card p-8">
+                    {/* Header */}
+                    <div className="text-center mb-8">
+                        <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5"
+                            style={{
+                                background: 'linear-gradient(135deg, var(--color-command) 0%, var(--color-signal) 100%)',
+                                boxShadow: '0 0 24px var(--color-signal-glow)',
+                            }}>
+                            <Shield size={22} className="text-white" />
+                        </div>
+                        <h1 className="text-xl font-bold text-canvas tracking-tight mb-1">Secure Access</h1>
+                        <p className="text-xs text-text-muted font-medium uppercase tracking-widest">RBAC Risk Evaluation System</p>
                     </div>
-                    <h1 className="text-3xl font-semibold text-light-text tracking-tight mb-2">Secure Access</h1>
-                    <p className="text-text-muted">RBAC Risk Evaluation System</p>
+
+                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
+                        {error && (
+                            <motion.div
+                                initial={{ opacity: 0, x: -8 }}
+                                animate={{ opacity: 1, x: 0 }}
+                                className="p-3 rounded-lg flex items-start gap-2.5 text-xs"
+                                style={{
+                                    background: locationError ? 'var(--color-warn-bg)' : 'var(--color-crit-bg)',
+                                    color: locationError ? 'var(--color-warn-text)' : 'var(--color-crit-text)',
+                                }}
+                            >
+                                {locationError ? <MapPin size={14} className="mt-0.5 shrink-0" /> : <AlertCircle size={14} className="mt-0.5 shrink-0" />}
+                                <div className="flex flex-col gap-0.5">
+                                    <span className="font-semibold">{error}</span>
+                                    {locationError && (
+                                        <span className="opacity-80">
+                                            Your current location is outside the authorized zone. Contact your administrator.
+                                        </span>
+                                    )}
+                                </div>
+                            </motion.div>
+                        )}
+
+                        <div>
+                            <label htmlFor="username" className="input-label">Username</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
+                                    <User size={16} />
+                                </span>
+                                <input
+                                    type="text"
+                                    id="username"
+                                    name="username"
+                                    placeholder="Enter your ID"
+                                    value={formData.username}
+                                    onChange={handleChange}
+                                    required
+                                    className="input-field input-field-with-icon"
+                                />
+                            </div>
+                        </div>
+
+                        <div>
+                            <label htmlFor="password" className="input-label">Password</label>
+                            <div className="relative">
+                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
+                                    <Lock size={16} />
+                                </span>
+                                <input
+                                    type={showPassword ? 'text' : 'password'}
+                                    id="password"
+                                    name="password"
+                                    placeholder="••••••••"
+                                    value={formData.password}
+                                    onChange={handleChange}
+                                    required
+                                    className="input-field input-field-with-icon pr-10"
+                                />
+                                <button
+                                    type="button"
+                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-canvas transition-colors"
+                                    onClick={() => setShowPassword(!showPassword)}
+                                    tabIndex={-1}
+                                    aria-label={showPassword ? 'Hide password' : 'Show password'}
+                                >
+                                    {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                                </button>
+                            </div>
+                        </div>
+
+                        <div className="flex justify-end">
+                            <Link to="/reset-password" className="text-xs font-medium transition-colors"
+                                style={{ color: 'var(--color-signal)' }}>
+                                Forgot password?
+                            </Link>
+                        </div>
+
+                        <button type="submit" className="btn btn-primary w-full mt-1" disabled={loading}>
+                            {loading ? (
+                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                            ) : (
+                                <>Sign In <ArrowRight size={14} /></>
+                            )}
+                        </button>
+
+                        <div className="text-center mt-2 text-xs text-text-muted">
+                            <span>New user? </span>
+                            <Link to="/register" className="font-semibold text-canvas hover:text-signal transition-colors">
+                                Create account
+                            </Link>
+                        </div>
+                    </form>
                 </div>
 
-                <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                    {error && (
-                        <motion.div
-                            initial={{ opacity: 0, x: -10 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            className={`p-4 rounded-xl flex items-start gap-3 text-sm ${locationError ? 'bg-amber-500/10 border border-amber-500/20 text-amber-500' : 'bg-red-500/10 border border-red-500/20 text-red-500'}`}
-                        >
-                            {locationError ? <MapPin size={18} className="mt-0.5 shrink-0" /> : <AlertCircle size={18} className="mt-0.5 shrink-0" />}
-                            <div className="flex flex-col">
-                                <span className="font-medium">{error}</span>
-                                {locationError && (
-                                    <span className="text-amber-500/80 mt-1">
-                                        Your current location is outside the authorized zone. Contact your administrator.
-                                    </span>
-                                )}
-                            </div>
-                        </motion.div>
-                    )}
-
-                    <div>
-                        <label htmlFor="username" className="input-label">Username</label>
-                        <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-focus-within:text-primary">
-                                <User size={20} />
-                            </span>
-                            <input
-                                type="text"
-                                id="username"
-                                name="username"
-                                placeholder="Enter your ID"
-                                value={formData.username}
-                                onChange={handleChange}
-                                required
-                                className="input-field input-field-with-icon peer"
-                            />
-                        </div>
+                {/* Footer badge */}
+                <div className="mt-4 flex justify-center">
+                    <div className="flex items-center gap-1.5 text-[10px] font-semibold uppercase tracking-widest px-3 py-1.5 rounded-md"
+                        style={{
+                            background: 'var(--color-safe-bg)',
+                            color: 'var(--color-safe-text)',
+                        }}>
+                        <MapPin size={10} />
+                        <span>Location-Verified Access</span>
                     </div>
-
-                    <div>
-                        <label htmlFor="password" className="input-label">Password</label>
-                        <div className="relative">
-                            <span className="absolute left-4 top-1/2 -translate-y-1/2 text-slate-400 pointer-events-none transition-colors group-focus-within:text-primary">
-                                <Lock size={20} />
-                            </span>
-                            <input
-                                type={showPassword ? 'text' : 'password'}
-                                id="password"
-                                name="password"
-                                placeholder="••••••••"
-                                value={formData.password}
-                                onChange={handleChange}
-                                required
-                                className="input-field input-field-with-icon pr-12 peer"
-                            />
-                            <button
-                                type="button"
-                                className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-white transition-colors"
-                                onClick={() => setShowPassword(!showPassword)}
-                                tabIndex={-1}
-                                aria-label={showPassword ? 'Hide password' : 'Show password'}
-                            >
-                                {showPassword ? <Eye size={20} /> : <EyeOff size={20} />}
-                            </button>
-                        </div>
-                    </div>
-
-                    <div className="flex justify-end pt-1">
-                        <Link to="/reset-password" className="text-sm font-medium text-primary hover:text-indigo-400 transition-colors">
-                            Forgot password?
-                        </Link>
-                    </div>
-
-                    <button type="submit" className="btn btn-primary w-full mt-2" disabled={loading}>
-                        {loading ? (
-                            <div className="w-5 h-5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                        ) : (
-                            <>Sign In <ArrowRight size={18} /></>
-                        )}
-                    </button>
-
-                    <div className="text-center mt-4 text-sm text-text-muted">
-                        <span>New user? </span>
-                        <Link to="/register" className="font-medium text-white hover:text-primary transition-colors">
-                            Create account
-                        </Link>
-                    </div>
-                </form>
+                </div>
             </motion.div>
-
-            <div className="absolute bottom-6 flex items-center gap-2 text-xs font-semibold uppercase tracking-wider text-emerald-400/80 bg-emerald-400/10 px-4 py-2 rounded-full border border-emerald-400/20 backdrop-blur-sm">
-                <MapPin size={14} />
-                <span>Location-Verified Access</span>
-            </div>
 
             <MfaModal
                 isOpen={mfaData.required}

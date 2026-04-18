@@ -45,7 +45,7 @@ const LocationSettings = () => {
             zoomControl: true,
         });
 
-        // Dark tile layer (CartoDB Dark Matter - 100% free, no API key)
+        // Dark tile layer (CartoDB Dark Matter)
         L.tileLayer('https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png', {
             attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OSM</a> &copy; <a href="https://carto.com/">CARTO</a>',
             subdomains: 'abcd',
@@ -64,7 +64,6 @@ const LocationSettings = () => {
 
         mapRef.current = map;
 
-        // Cleanup on unmount
         return () => {
             map.remove();
             mapRef.current = null;
@@ -82,34 +81,23 @@ const LocationSettings = () => {
 
         if (isNaN(lat) || isNaN(lng)) return;
 
-        // Remove old marker/circle
-        if (markerRef.current) {
-            markerRef.current.remove();
-            markerRef.current = null;
-        }
-        if (circleRef.current) {
-            circleRef.current.remove();
-            circleRef.current = null;
-        }
+        if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
+        if (circleRef.current) { circleRef.current.remove(); circleRef.current = null; }
 
-        // Add new marker
         markerRef.current = L.marker([lat, lng]).addTo(map);
 
-        // Add radius circle
         const radius = isNaN(radiusKm) || radiusKm <= 0 ? 1000 : radiusKm * 1000;
         circleRef.current = L.circle([lat, lng], {
             radius,
-            color: '#6366f1',
-            fillColor: '#6366f1',
-            fillOpacity: 0.15,
+            color: '#378ADD',
+            fillColor: '#378ADD',
+            fillOpacity: 0.12,
             weight: 2,
         }).addTo(map);
 
-        // Fit map to circle
         map.fitBounds(circleRef.current.getBounds(), { padding: [30, 30] });
     }, [formData.centerLatitude, formData.centerLongitude, formData.radiusKm]);
 
-    // Fetch configs on mount
     useEffect(() => {
         fetchConfigs();
     }, []);
@@ -196,7 +184,6 @@ const LocationSettings = () => {
                 locationName: '',
                 enabled: true,
             });
-            // Clear map markers
             if (markerRef.current) { markerRef.current.remove(); markerRef.current = null; }
             if (circleRef.current) { circleRef.current.remove(); circleRef.current = null; }
             fetchConfigs();
@@ -211,9 +198,8 @@ const LocationSettings = () => {
             return;
         }
 
-        // Check for secure context (HTTPS or localhost)
         if (!window.isSecureContext && window.location.hostname !== 'localhost') {
-            showMessage('⚠️ Location access requires HTTPS or localhost. Please open via http://localhost:3000', 'warning');
+            showMessage('⚠️ Location access requires HTTPS or localhost.', 'warning');
             return;
         }
 
@@ -233,12 +219,9 @@ const LocationSettings = () => {
                 if (error.code === 1) msg = 'Location permission denied';
                 if (error.code === 2) msg = 'Location unavailable';
                 if (error.code === 3) msg = 'Location request timed out';
-
-                // Specific hint for the secure origin issue if it happens despite checks
                 if (error.message.includes('secure origin')) {
                     msg = 'Browser blocked location (requires HTTPS/localhost)';
                 }
-
                 showMessage(msg, 'danger');
             },
             { enableHighAccuracy: true, timeout: 10000 }
@@ -288,86 +271,107 @@ const LocationSettings = () => {
         <motion.div
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
-             className="w-full max-w-7xl mx-auto"
+            className="w-full max-w-7xl mx-auto flex flex-col gap-5"
         >
-            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6 p-4 bg-dark-bg/40 border border-dark-border rounded-xl shadow-sm">
+            {/* Header */}
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 p-4 rounded-xl"
+                style={{ background: 'var(--color-bg-card)', border: '1px solid var(--color-border-subtle)' }}>
                 <div className="flex items-center gap-3">
-                    <div className="p-2.5 bg-primary/20 text-primary rounded-lg">
+                    <div className="p-2.5 rounded-lg" style={{ background: 'rgba(55, 138, 221, 0.12)', color: 'var(--color-signal)' }}>
                         <MapPin size={20} />
                     </div>
                     <div>
-                        <h2 className="text-lg font-bold text-light-text m-0 mb-0.5">Location Restriction</h2>
-                        <p className="text-xs text-dark-text-muted m-0">Configure the allowed login zone for regular users.</p>
+                        <h2 className="text-base font-bold text-canvas m-0 mb-0.5">Location Restriction</h2>
+                        <p className="text-[11px] text-text-muted m-0">Configure the allowed login zone for regular users.</p>
                     </div>
                 </div>
                 <div>
                     {config ? (
-                        <span className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold border ${config.enabled ? 'bg-success/10 text-success border-success/30' : 'bg-dark-bg/80 text-dark-text-muted border-dark-border'}`}>
-                            {config.enabled ? <span className="w-2 h-2 rounded-full bg-success"></span> : <span className="w-2 h-2 rounded-full border border-dark-text-muted"></span>}
-                            {config.enabled ? 'Active' : 'Inactive'}
+                        <span className={`badge text-[10px] ${config.enabled ? 'badge-success' : ''}`}
+                            style={!config.enabled ? { background: 'rgba(136, 135, 128, 0.12)', color: 'var(--color-text-muted)' } : {}}>
+                            <span className={`inline-block w-1.5 h-1.5 rounded-full mr-1.5 ${config.enabled ? 'bg-safe' : ''}`}
+                                style={!config.enabled ? { border: '1px solid var(--color-text-muted)' } : {}} />
+                            {config.enabled ? 'ACTIVE' : 'INACTIVE'}
                         </span>
                     ) : (
-                        <span className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full text-xs font-bold bg-dark-bg/80 text-dark-text-muted border border-dark-border">
-                            <span className="w-2 h-2 rounded-full border border-dark-text-muted"></span> Not Configured
+                        <span className="badge" style={{ background: 'rgba(136, 135, 128, 0.12)', color: 'var(--color-text-muted)' }}>
+                            NOT CONFIGURED
                         </span>
                     )}
                 </div>
             </div>
 
+            {/* Alert */}
             <AnimatePresence>
                 {message && (
                     <motion.div
                         initial={{ opacity: 0, y: -10 }}
                         animate={{ opacity: 1, y: 0 }}
                         exit={{ opacity: 0, y: -10 }}
-                        className={`flex items-center gap-2.5 p-3 mb-6 rounded-lg border text-sm font-medium ${message.type === 'danger' ? 'bg-danger/10 border-danger/30 text-danger shadow-[0_0_10px_rgba(239,68,68,0.15)]' : 'bg-success/10 border-success/30 text-success shadow-[0_0_10px_rgba(34,197,94,0.15)]'}`}
+                        className="flex items-center gap-2.5 p-3 rounded-lg text-xs font-semibold"
+                        style={{
+                            background: message.type === 'danger' ? 'var(--color-crit-bg)' : 'var(--color-safe-bg)',
+                            color: message.type === 'danger' ? 'var(--color-crit-text)' : 'var(--color-safe-text)',
+                        }}
                     >
-                         {message.type === 'danger' ? <AlertTriangle size={20} /> : <Shield size={20} />}
+                        {message.type === 'danger' ? <AlertTriangle size={14} /> : <Shield size={14} />}
                         {message.text}
                     </motion.div>
                 )}
             </AnimatePresence>
 
-            <div className="grid grid-cols-1 lg:grid-cols-5 gap-6">
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
                 {/* Map Section */}
-                <div className="glass-card flex flex-col h-[400px] lg:col-span-3 lg:h-[520px] overflow-hidden p-0 relative border border-dark-border rounded-xl">
-                    <div className="absolute top-0 inset-x-0 z-[1000] p-3 bg-dark-bg/90 backdrop-blur-md border-b border-dark-border flex flex-col gap-2 shadow-sm">
+                <div className="glass-card flex flex-col h-[400px] lg:col-span-3 lg:h-[520px] overflow-hidden p-0 relative">
+                    <div className="absolute top-0 inset-x-0 z-[1000] p-3 border-b flex flex-col gap-2"
+                        style={{
+                            background: 'rgba(12, 20, 32, 0.92)',
+                            backdropFilter: 'blur(12px)',
+                            borderColor: 'var(--color-border-subtle)',
+                        }}>
                         <div className="flex justify-between items-center w-full">
-                            <h3 className="flex items-center gap-2 text-sm text-light-text font-bold m-0"><MapPin className="text-primary" size={16} /> Map View</h3>
-                            <span className="text-[11px] text-dark-text-muted hidden sm:inline">Click to set point</span>
+                            <h3 className="flex items-center gap-2 text-xs text-canvas font-bold m-0">
+                                <MapPin size={14} style={{ color: 'var(--color-signal)' }} /> Map View
+                            </h3>
+                            <span className="text-[10px] text-text-muted hidden sm:inline">Click to set point</span>
                         </div>
                         <form onSubmit={handleSearch} className="flex gap-2">
-                            <input 
+                            <input
                                 type="text"
                                 placeholder="Search city or address..."
                                 value={searchQuery}
                                 onChange={(e) => setSearchQuery(e.target.value)}
-                                className="w-full bg-[#111111] border border-dark-border rounded-lg px-3 py-1.5 text-sm text-light-text focus:outline-none focus:border-primary shadow-inner transition-all placeholder:text-dark-text-muted/50"
+                                className="input-field py-1.5 text-xs"
                             />
-                            <button type="submit" className="btn btn-primary px-3 py-1.5 text-xs whitespace-nowrap rounded-lg flex items-center justify-center">
-                                <Search size={14} /> <span className="hidden sm:inline ml-1.5">Search</span>
+                            <button type="submit" className="btn btn-primary px-3 py-1.5 text-[11px] whitespace-nowrap">
+                                <Search size={12} /> <span className="hidden sm:inline">Search</span>
                             </button>
                         </form>
                     </div>
-                    <div className="flex-1 w-full z-0 h-full [&>.leaflet-container]:h-full [&>.leaflet-container]:!bg-[#0D0D1A]" ref={mapContainerRef}></div>
+                    <div className="flex-1 w-full z-0 h-full [&>.leaflet-container]:h-full [&>.leaflet-container]:!bg-bg-deep" ref={mapContainerRef}></div>
                     <div className="absolute bottom-4 inset-x-0 z-[1000] px-4 text-center pointer-events-none">
-                        <button onClick={handleUseCurrentLocation} className="btn bg-dark-bg/90 hover:bg-dark-bg/100 text-xs text-light-text border border-dark-border shadow-md backdrop-blur-sm pointer-events-auto inline-flex items-center gap-1.5 py-1.5 px-3 rounded-lg">
-                            <Navigation size={14} /> Use My Location
+                        <button onClick={handleUseCurrentLocation}
+                            className="btn btn-secondary text-[11px] py-1.5 px-3 pointer-events-auto shadow-md">
+                            <Navigation size={12} /> Use My Location
                         </button>
                     </div>
                 </div>
 
                 {/* Config Form */}
-                <div className="glass-card overflow-y-auto custom-scrollbar p-5 lg:col-span-2 lg:h-[520px] rounded-xl flex flex-col">
-                    <h3 className="flex items-center gap-2 text-base font-bold text-light-text mb-4 pb-3 border-b border-dark-border"><Save className="text-primary" size={16} /> Configuration</h3>
+                <div className="glass-card overflow-y-auto p-5 lg:col-span-2 lg:h-[520px] flex flex-col"
+                    style={{ scrollbarWidth: 'thin', scrollbarColor: 'var(--color-midnight) transparent' }}>
+                    <h3 className="flex items-center gap-2 text-sm font-bold text-canvas mb-4 pb-3"
+                        style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                        <Save size={14} style={{ color: 'var(--color-signal)' }} /> Configuration
+                    </h3>
 
                     <div className="space-y-4 flex-1">
                         <div>
-                            <label className="block text-[13px] font-semibold text-light-text mb-1">Location Name</label>
+                            <label className="input-label">Location Name</label>
                             <input
                                 type="text"
                                 placeholder="e.g. Office, Campus"
-                                className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50"
+                                className="input-field"
                                 value={formData.locationName}
                                 onChange={(e) => setFormData({ ...formData, locationName: e.target.value })}
                             />
@@ -375,23 +379,21 @@ const LocationSettings = () => {
 
                         <div className="grid grid-cols-2 gap-3">
                             <div>
-                                <label className="block text-[13px] font-semibold text-light-text mb-1">Latitude</label>
+                                <label className="input-label">Latitude</label>
                                 <input
-                                    type="number"
-                                    step="0.000001"
+                                    type="number" step="0.000001"
                                     placeholder="e.g. 28.6139"
-                                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
+                                    className="input-field font-mono text-xs"
                                     value={formData.centerLatitude}
                                     onChange={(e) => setFormData({ ...formData, centerLatitude: e.target.value })}
                                 />
                             </div>
                             <div>
-                                <label className="block text-[13px] font-semibold text-light-text mb-1">Longitude</label>
+                                <label className="input-label">Longitude</label>
                                 <input
-                                    type="number"
-                                    step="0.000001"
+                                    type="number" step="0.000001"
                                     placeholder="e.g. 77.2090"
-                                    className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
+                                    className="input-field font-mono text-xs"
                                     value={formData.centerLongitude}
                                     onChange={(e) => setFormData({ ...formData, centerLongitude: e.target.value })}
                                 />
@@ -399,60 +401,73 @@ const LocationSettings = () => {
                         </div>
 
                         <div>
-                            <label className="block text-[13px] font-semibold text-light-text mb-1">Allowed Radius (km)</label>
+                            <label className="input-label">Allowed Radius (km)</label>
                             <input
-                                type="number"
-                                step="0.1"
-                                min="0.1"
+                                type="number" step="0.1" min="0.1"
                                 placeholder="e.g. 2.5"
-                                className="w-full bg-dark-bg border border-dark-border rounded-lg px-3 py-2 text-sm text-light-text focus:outline-none focus:border-primary focus:ring-1 focus:ring-primary shadow-inner transition-all placeholder:text-dark-text-muted/50 font-mono"
+                                className="input-field font-mono text-xs"
                                 value={formData.radiusKm}
                                 onChange={(e) => setFormData({ ...formData, radiusKm: e.target.value })}
                             />
-                            <span className="block text-[11px] text-dark-text-muted mt-1">
+                            <span className="block text-[10px] text-text-muted mt-1.5">
                                 Users within {formData.radiusKm || '...'} km can login
                             </span>
                         </div>
 
                         <div className="pt-1">
-                            <label className="block text-[13px] font-semibold text-light-text mb-1.5">Restriction Status</label>
+                            <label className="input-label">Restriction Status</label>
                             <button
-                                className={`w-full flex items-center justify-center gap-2 py-2 rounded-lg border transition-all text-xs font-bold cursor-pointer ${formData.enabled ? 'bg-success/10 border-success/30 text-success shadow-[0_0_8px_rgba(34,197,94,0.1)] hover:bg-success/20' : 'bg-dark-bg border-dark-border text-dark-text-muted hover:text-light-text hover:bg-dark-bg/80'}`}
+                                className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-xs font-bold transition-all"
+                                style={{
+                                    background: formData.enabled ? 'var(--color-safe-bg)' : 'var(--color-bg-elevated)',
+                                    color: formData.enabled ? 'var(--color-safe-text)' : 'var(--color-text-muted)',
+                                    border: `1px solid ${formData.enabled ? 'rgba(99, 153, 34, 0.25)' : 'var(--color-border-subtle)'}`,
+                                }}
                                 onClick={() => setFormData({ ...formData, enabled: !formData.enabled })}
                                 type="button"
                             >
-                                {formData.enabled ? <ToggleRight size={18} /> : <ToggleLeft size={18} />}
+                                {formData.enabled ? <ToggleRight size={16} /> : <ToggleLeft size={16} />}
                                 <span>{formData.enabled ? 'Active Mode' : 'Inactive Mode'}</span>
                             </button>
                         </div>
                     </div>
 
-                    <div className="flex gap-2 mt-5 pt-4 border-t border-dark-border">
-                        <button onClick={handleSave} className="flex-1 btn btn-primary flex items-center justify-center py-2 text-sm rounded-lg cursor-pointer transition-transform hover:scale-[1.02]" disabled={saving}>
-                            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin"></div> : <><Save size={16} className="mr-1.5" /> Save</>}
+                    <div className="flex gap-2 mt-5 pt-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+                        <button onClick={handleSave} className="flex-1 btn btn-primary py-2" disabled={saving}>
+                            {saving ? <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" /> : <><Save size={14} /> Save</>}
                         </button>
-                        <button onClick={handleNewConfig} className="flex-1 btn bg-dark-bg hover:bg-dark-bg/80 border border-dark-border text-light-text flex items-center justify-center py-2 text-sm rounded-lg cursor-pointer transition-transform hover:scale-[1.02]">
-                            <RefreshCw size={14} className="mr-1.5 text-dark-text-muted" /> Reset
+                        <button onClick={handleNewConfig} className="flex-1 btn btn-secondary py-2">
+                            <RefreshCw size={12} /> Reset
                         </button>
                     </div>
 
                     {/* Existing Configs */}
                     {allConfigs.length > 0 && (
-                        <div className="mt-5 pt-4 border-t border-dark-border">
-                            <h4 className="text-[11px] font-bold text-dark-text-muted uppercase tracking-wider mb-3">Saved Configurations</h4>
+                        <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
+                            <p className="sec-label mb-3">Saved Configurations</p>
                             <div className="space-y-2">
                                 {allConfigs.map((c) => (
-                                    <div key={c.id} className={`flex items-center justify-between p-2.5 rounded-lg border transition-all ${c.enabled ? 'bg-primary/5 border-primary/20 shadow-[0_0_8px_rgba(37,99,235,0.05)]' : 'bg-dark-bg/50 border-dark-border opacity-70'}`}>
+                                    <div key={c.id} className="flex items-center justify-between p-2.5 rounded-lg transition-all"
+                                        style={{
+                                            background: c.enabled ? 'rgba(55, 138, 221, 0.06)' : 'var(--color-bg-elevated)',
+                                            border: `1px solid ${c.enabled ? 'rgba(55, 138, 221, 0.15)' : 'var(--color-border-subtle)'}`,
+                                            opacity: c.enabled ? 1 : 0.7,
+                                        }}>
                                         <div className="flex-1 pr-3 min-w-0">
-                                            <span className="block text-xs font-bold text-light-text truncate">{c.locationName || 'Unnamed Zone'}</span>
-                                            <span className="block text-[10px] text-dark-text-muted mt-0.5 font-mono">
-                                                ({c.centerLatitude?.toFixed(4)}, {c.centerLongitude?.toFixed(4)}) • {c.radiusKm} km
+                                            <span className="block text-xs font-bold text-canvas truncate">{c.locationName || 'Unnamed Zone'}</span>
+                                            <span className="block text-[10px] text-text-muted mt-0.5 font-mono">
+                                                ({c.centerLatitude?.toFixed(4)}, {c.centerLongitude?.toFixed(4)}) · {c.radiusKm} km
                                             </span>
                                         </div>
                                         <div className="flex items-center gap-1.5 shrink-0">
                                             <button
                                                 onClick={() => handleToggle(c.id, c.enabled)}
-                                                className={`p-1.5 rounded-md transition-colors cursor-pointer ${c.enabled ? 'text-success bg-success/10 hover:bg-success/20' : 'text-dark-text-muted hover:text-light-text border border-dark-border bg-dark-bg'}`}
+                                                className="p-1.5 rounded-md transition-colors"
+                                                style={{
+                                                    background: c.enabled ? 'var(--color-safe-bg)' : 'var(--color-bg-elevated)',
+                                                    color: c.enabled ? 'var(--color-safe-text)' : 'var(--color-text-muted)',
+                                                    border: `1px solid ${c.enabled ? 'rgba(99, 153, 34, 0.2)' : 'var(--color-border-subtle)'}`,
+                                                }}
                                                 title={c.enabled ? 'Disable' : 'Enable'}
                                             >
                                                 {c.enabled ? <ToggleRight size={14} /> : <ToggleLeft size={14} />}
@@ -468,14 +483,16 @@ const LocationSettings = () => {
                                                         enabled: c.enabled,
                                                     });
                                                 }}
-                                                className="p-1.5 text-dark-text-muted hover:text-primary bg-dark-bg border border-dark-border rounded-md hover:border-primary/50 transition-colors cursor-pointer"
+                                                className="p-1.5 rounded-md text-text-muted hover:text-signal transition-colors"
+                                                style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border-subtle)' }}
                                                 title="Edit"
                                             >
                                                 <MapPin size={14} />
                                             </button>
                                             <button
                                                 onClick={() => handleDelete(c.id)}
-                                                className="p-1.5 text-dark-text-muted hover:text-danger bg-dark-bg border border-dark-border rounded-md hover:border-danger/50 hover:bg-danger/10 transition-colors cursor-pointer"
+                                                className="p-1.5 rounded-md text-text-muted hover:text-crit-solid transition-colors"
+                                                style={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border-subtle)' }}
                                                 title="Delete"
                                             >
                                                 <Trash2 size={14} />

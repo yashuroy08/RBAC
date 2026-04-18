@@ -1,0 +1,187 @@
+
+<h2 class="sr-only">RBAC Risk Evaluator — Product strategy overview including project aim, feature roadmap, and visual identity</h2>
+
+<style>
+  .sec { margin: 0 0 2rem; }
+  .sec-label { font-size: 11px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--color-text-tertiary); margin: 0 0 0.75rem; }
+  .card { background: var(--color-background-primary); border: 0.5px solid var(--color-border-tertiary); border-radius: var(--border-radius-lg); padding: 1rem 1.25rem; }
+  .grid2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 12px; }
+  .grid3 { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 12px; }
+  .badge { display: inline-block; font-size: 11px; font-weight: 500; padding: 3px 10px; border-radius: 99px; }
+  .tag-high { background: #FCEBEB; color: #A32D2D; }
+  .tag-med  { background: #FAEEDA; color: #854F0B; }
+  .tag-low  { background: #EAF3DE; color: #3B6D11; }
+  .tag-new  { background: #EEEDFE; color: #3C3489; }
+  .feature-num { font-size: 28px; font-weight: 500; color: var(--color-text-tertiary); line-height: 1; margin-bottom: 6px; }
+  .feature-title { font-size: 14px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 4px; }
+  .feature-body { font-size: 13px; color: var(--color-text-secondary); margin: 0; line-height: 1.55; }
+  .swatch-row { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 10px; }
+  .swatch { border-radius: 6px; height: 52px; flex: 1; min-width: 52px; display: flex; align-items: flex-end; padding: 5px 7px; }
+  .swatch-label { font-size: 10px; font-weight: 500; line-height: 1.3; }
+  .divider { border: none; border-top: 0.5px solid var(--color-border-tertiary); margin: 0 0 2rem; }
+  .aim-headline { font-size: 18px; font-weight: 500; color: var(--color-text-primary); margin: 0 0 0.5rem; line-height: 1.4; }
+  .aim-body { font-size: 14px; color: var(--color-text-secondary); margin: 0; line-height: 1.65; }
+  .metric-row { display: flex; gap: 10px; margin-top: 14px; }
+  .metric { background: var(--color-background-secondary); border-radius: var(--border-radius-md); padding: 10px 14px; flex: 1; }
+  .metric-val { font-size: 20px; font-weight: 500; color: var(--color-text-primary); }
+  .metric-lbl { font-size: 11px; color: var(--color-text-secondary); margin-top: 2px; }
+  .design-chip { border-radius: var(--border-radius-md); padding: 8px 12px; font-size: 13px; font-weight: 500; }
+  .timeline-dot { width: 8px; height: 8px; border-radius: 50%; margin-top: 5px; flex-shrink: 0; }
+</style>
+
+<div style="padding: 1.5rem 0 0;">
+
+  <div class="sec">
+    <p class="sec-label">Project aim</p>
+    <div class="card">
+      <p class="aim-headline">Secure, adaptive access control — with real-time intelligence</p>
+      <p class="aim-body">This system solves the gap between static role-based permissions and dynamic, context-aware security. It gives organisations a single platform to enforce who can access what, detect suspicious session behaviour automatically, and respond to risk — without manual intervention. The target users are IT administrators managing multi-user environments where concurrent sessions, device trust, and physical location are all security variables.</p>
+      <div class="metric-row">
+        <div class="metric"><div class="metric-val">RBAC</div><div class="metric-lbl">Role enforcement layer</div></div>
+        <div class="metric"><div class="metric-val">Risk engine</div><div class="metric-lbl">Concurrent session scoring</div></div>
+        <div class="metric"><div class="metric-val">Adaptive MFA</div><div class="metric-lbl">Device-aware verification</div></div>
+        <div class="metric"><div class="metric-val">Geo-fence</div><div class="metric-lbl">Location-based login control</div></div>
+      </div>
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sec">
+    <p class="sec-label">Feature roadmap</p>
+    <div class="grid2">
+
+      <div class="card">
+        <div class="feature-num">01</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <p class="feature-title" style="margin:0;">Real-time threat dashboard</p>
+          <span class="badge tag-high">High impact</span>
+        </div>
+        <p class="feature-body">A live admin view showing risk scores, active sessions, and flagged events across all users simultaneously — with WebSocket push updates, not polling. Replaces the current per-user query model.</p>
+      </div>
+
+      <div class="card">
+        <div class="feature-num">02</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <p class="feature-title" style="margin:0;">Behavioural anomaly detection</p>
+          <span class="badge tag-high">High impact</span>
+        </div>
+        <p class="feature-body">Move beyond session count. Detect unusual login hours, rapid IP hops, and impossible travel between sessions. Build a rolling baseline per user and auto-escalate MFA when deviation is detected.</p>
+      </div>
+
+      <div class="card">
+        <div class="feature-num">03</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <p class="feature-title" style="margin:0;">Self-service user security portal</p>
+          <span class="badge tag-med">Medium priority</span>
+        </div>
+        <p class="feature-body">Let users view, name, and revoke their own trusted devices and sessions without contacting an admin. Reduces support burden and increases transparency — users can see exactly what has access to their account.</p>
+      </div>
+
+      <div class="card">
+        <div class="feature-num">04</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <p class="feature-title" style="margin:0;">Audit log and compliance export</p>
+          <span class="badge tag-med">Medium priority</span>
+        </div>
+        <p class="feature-body">Immutable, filterable logs of every risk event, login, role change, and session invalidation. Export to CSV or PDF for GDPR, ISO 27001, or SOC 2 compliance reporting. Includes admin action attribution.</p>
+      </div>
+
+      <div class="card">
+        <div class="feature-num">05</div>
+        <div style="display:flex; align-items:center; gap:8px; margin-bottom:6px;">
+          <p class="feature-title" style="margin:0;">Notification and alert system</p>
+          <span class="badge tag-low">Quick win</span>
+        </div>
+        <p class="feature-body">Email or webhook alerts when thresholds are breached, a new device is trusted, or an account is locked. Configurable per-admin. Currently the system acts silently — users only discover events on next login.</p>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sec">
+    <p class="sec-label">Visual identity</p>
+    <div class="grid2">
+
+      <div class="card">
+        <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+          <div class="design-chip" style="background:#0F1C2E; color:#7FB8F5;">Precision Dark</div>
+          <div class="design-chip" style="background:#EFF4FB; color:#185FA5;">Command Light</div>
+        </div>
+        <p class="feature-body">Aesthetic direction: <strong style="font-weight:500;">Structured Utility</strong> — the visual language of professional security tooling. Think enterprise-grade clarity: high information density, strong typographic hierarchy, and purposeful use of colour only to encode meaning (risk level, status, role). No decorative elements. Inspired by tools like Datadog, Okta, and Linear.</p>
+        <p class="feature-body" style="margin-top:10px;">Key principles: monospaced session IDs and device hashes for legibility, traffic-light status colours (red/amber/green) used consistently and never decoratively, and a persistent risk score gauge visible on every authenticated screen.</p>
+      </div>
+
+      <div class="card">
+        <p class="feature-title">Colour palette</p>
+
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:0 0 6px;">Primary — deep navy authority</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#0F1C2E;"><span class="swatch-label" style="color:#7FB8F5;">#0F1C2E<br>Abyss</span></div>
+          <div class="swatch" style="background:#1A2E4A;"><span class="swatch-label" style="color:#B5D4F4;">#1A2E4A<br>Midnight</span></div>
+          <div class="swatch" style="background:#185FA5;"><span class="swatch-label" style="color:#E6F1FB;">#185FA5<br>Command</span></div>
+          <div class="swatch" style="background:#378ADD;"><span class="swatch-label" style="color:#042C53;">#378ADD<br>Signal</span></div>
+        </div>
+
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:14px 0 6px;">Status — risk levels</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#EAF3DE;"><span class="swatch-label" style="color:#3B6D11;">#EAF3DE<br>Low / Safe</span></div>
+          <div class="swatch" style="background:#FAEEDA;"><span class="swatch-label" style="color:#854F0B;">#FAEEDA<br>Medium</span></div>
+          <div class="swatch" style="background:#FCEBEB;"><span class="swatch-label" style="color:#A32D2D;">#FCEBEB<br>High</span></div>
+          <div class="swatch" style="background:#E24B4A;"><span class="swatch-label" style="color:#FCEBEB;">#E24B4A<br>Critical</span></div>
+        </div>
+
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:14px 0 6px;">Neutral — surfaces and type</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#F1EFE8;"><span class="swatch-label" style="color:#5F5E5A;">#F1EFE8<br>Canvas</span></div>
+          <div class="swatch" style="background:#D3D1C7;"><span class="swatch-label" style="color:#444441;">#D3D1C7<br>Mist</span></div>
+          <div class="swatch" style="background:#888780;"><span class="swatch-label" style="color:#2C2C2A;">#888780<br>Ash</span></div>
+          <div class="swatch" style="background:#2C2C2A;"><span class="swatch-label" style="color:#D3D1C7;">#2C2C2A<br>Carbon</span></div>
+        </div>
+
+        <p style="font-size:11px; color:var(--color-text-tertiary); margin:14px 0 6px;">Accent — MFA and trust states</p>
+        <div class="swatch-row">
+          <div class="swatch" style="background:#EEEDFE;"><span class="swatch-label" style="color:#3C3489;">#EEEDFE<br>Pending</span></div>
+          <div class="swatch" style="background:#534AB7;"><span class="swatch-label" style="color:#EEEDFE;">#534AB7<br>Verified</span></div>
+          <div class="swatch" style="background:#26215C;"><span class="swatch-label" style="color:#CECBF6;">#26215C<br>Trusted</span></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <hr class="divider">
+
+  <div class="sec">
+    <p class="sec-label">Colour usage map — what each colour encodes</p>
+    <div class="grid3">
+      <div class="card" style="border-left: 3px solid #378ADD; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Blue ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Primary actions, navigation, ADMIN role badges, session IDs, interactive elements</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #639922; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Green ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Risk score LOW, trusted device confirmed, account unlocked, session within limit</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #BA7517; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Amber ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Risk score MEDIUM, approaching session limit, MFA prompted, warning states</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #E24B4A; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Red ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Risk CRITICAL, session invalidated, account locked, threshold breached alerts</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #534AB7; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Purple ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">MFA states — pending verification, device trust level, OTP flow indicators</p>
+      </div>
+      <div class="card" style="border-left: 3px solid #888780; border-radius: 0 var(--border-radius-lg) var(--border-radius-lg) 0;">
+        <p style="font-size:12px; font-weight:500; color:var(--color-text-primary); margin:0 0 4px;">Gray ramp</p>
+        <p style="font-size:12px; color:var(--color-text-secondary); margin:0;">Inactive sessions, disabled accounts, historical events, secondary metadata</p>
+      </div>
+    </div>
+  </div>
+
+</div>

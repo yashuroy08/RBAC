@@ -31,6 +31,9 @@ public class UserService {
     private final RoleRepository roleRepository;
     private final PasswordEncoder passwordEncoder;
     private final com.project.rbac.repository.LocationConfigRepository locationConfigRepository;
+    private final com.project.rbac.repository.TrustedDeviceRepository trustedDeviceRepository;
+    private final com.project.rbac.repository.RiskEventRepository riskEventRepository;
+    private final com.project.rbac.repository.UserSessionRepository userSessionRepository;
 
     /**
      * Register a new user
@@ -229,6 +232,7 @@ public class UserService {
 
         UserResponse response = new UserResponse();
         response.setId(user.getId());
+        response.setPublicId(user.getPublicId());
         response.setUsername(user.getUsername());
         response.setEmail(user.getEmail());
         response.setRoles(roleNames);
@@ -236,6 +240,8 @@ public class UserService {
         response.setAccountNonLocked(user.isAccountNonLocked());
         response.setCredentialsNonExpired(user.isCredentialsNonExpired());
         response.setEnabled(user.isEnabled());
+        response.setMfaEnabled(true); // Adaptive MFA is system-wide
+        response.setCreatedAt(user.getCreatedAt());
 
         if (user.getAssignedLocation() != null) {
             response.setAssignedLocationId(user.getAssignedLocation().getId());
@@ -278,5 +284,40 @@ public class UserService {
         log.info("Removed assigned location from user '{}'", user.getUsername());
 
         return convertToUserResponse(saved);
+    }
+    /**
+     * Delete a user account (Admin operation)
+     * 
+     * Performs cascading cleanup:
+     *  1. Invalidate all active sessions
+     *  2. Remove all trusted devices
+     *  3. Remove all risk event logs
+     *  4. Detach role associations
+     *  5. Delete the user entity
+     */
+    @Transactional
+    public void deleteUser(Long userId) {
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+
+        String username = user.getUsername();
+
+        // 1. Clean up sessions (handled by cascade, but explicit for safety)
+        userSessionRepository.deactivateAllSessionsByUserId(userId);
+        userSessionRepository.deleteAll(userSessionRepository.findByUserId(userId));
+
+        // 2. Clean up trusted devices
+        trustedDeviceRepository.deleteAll(trustedDeviceRepository.findByUserId(userId));
+
+        // 3. Clean up risk event audit trail
+        riskEventRepository.deleteByUserId(userId);
+
+        // 4. Detach roles (ManyToMany)
+        user.getRoles().clear();
+
+        // 5. Delete user entity
+        userRepository.delete(user);
+
+        log.warn("⚠️ Permanently deleted user '{}' (ID: {}). All associated data purged.", username, userId);
     }
 }

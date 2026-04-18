@@ -18,6 +18,7 @@ public class SessionInfoDTO {
     private Long id;
     private String sessionId;
     private String deviceId;
+    private String deviceName;
     private String ipAddress;
     private LocalDateTime loginTime;
     private LocalDateTime lastAccessedTime;

@@ -1,0 +1,27 @@
+services:
+  - type: web
+    name: rbac-backend
+    env: java
+    buildCommand: mvn clean package -DskipTests
+    startCommand: java -jar target/rbac-risk-evaluator-1.0.0.jar
+    envVars:
+      - key: PORT
+        value: 8081
+      - key: SPRING_DATASOURCE_URL
+        fromDatabase:
+          name: rbac-db
+          property: connectionString
+      - key: SPRING_DATASOURCE_DRIVER
+        value: org.postgresql.Driver
+      - key: SPRING_JPA_DIALECT
+        value: org.hibernate.dialect.PostgreSQLDialect
+      - key: JWT_SECRET
+        generateValue: true
+      - key: ALLOWED_ORIGINS
+        value: https://threads-fashion.vercel.app,https://threads-fashion-backend.onrender.com,http://localhost:5173
+
+databases:
+  - name: rbac-db
+    databaseName: rbac_db
+    user: rbac_user
+    plan: free

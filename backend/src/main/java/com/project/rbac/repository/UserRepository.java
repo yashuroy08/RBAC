@@ -54,4 +54,15 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u FROM User u LEFT JOIN FETCH u.roles WHERE u.username = :username")
     Optional<User> findByUsernameWithRoles(@Param("username") String username);
+
+    /**
+     * Find user by public UUID
+     */
+    Optional<User> findByPublicId(String publicId);
+
+    /**
+     * Find all users with no public ID assigned (for migration/backfill)
+     */
+    @Query("SELECT u FROM User u WHERE u.publicId IS NULL OR u.publicId = ''")
+    java.util.List<User> findAllByPublicIdIsNullOrEmpty();
 }

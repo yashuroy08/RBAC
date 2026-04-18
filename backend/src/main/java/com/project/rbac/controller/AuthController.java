@@ -5,6 +5,7 @@ import com.project.rbac.security.UserPrincipal;
 import com.project.rbac.service.AuthService;
 import com.project.rbac.service.RiskEvaluatorService;
 import com.project.rbac.service.UserService;
+import com.project.rbac.service.AuditLogService;
 import io.swagger.annotations.Api;
 import io.swagger.annotations.ApiOperation;
 import lombok.RequiredArgsConstructor;
@@ -37,6 +38,8 @@ public class AuthController {
     private final UserService userService;
     private final AuthService authService;
     private final RiskEvaluatorService riskEvaluatorService;
+    private final AuditLogService auditLogService;
+    private final com.project.rbac.security.JwtTokenProvider tokenProvider;
 
     /**
      * Register new user
@@ -53,6 +56,10 @@ public class AuthController {
             log.info("Registration request for username: {}", request.getUsername());
 
             UserResponse userResponse = userService.registerUser(request);
+            
+            auditLogService.logEvent("AUTH", "USER_REGISTERED", "INFO", 
+                userResponse.getUsername(), userResponse.getUsername(), "New user registered", 
+                "{\"email\":\"" + userResponse.getEmail() + "\"}", "SUCCESS");
 
             return ResponseEntity
                     .status(HttpStatus.CREATED)
@@ -109,6 +116,13 @@ public class AuthController {
             }
 
             log.info("📢 Login status - MFA Required: {}, Message: {}", mfaRequired, message);
+            
+            auditLogService.logEvent("AUTH", mfaRequired ? "MFA_CHALLENGED" : "LOGIN_SUCCESS", "INFO", 
+                userPrincipal.getUsername(), userPrincipal.getUsername(), 
+                mfaRequired ? "MFA step-up required" : "User login successful", 
+                null, mfaRequired ? "PENDING" : "SUCCESS");
+
+            String jwt = tokenProvider.generateToken(authResult.authentication);
 
             return ResponseEntity.ok(ApiResponse.success(
                     message,
@@ -117,28 +131,41 @@ public class AuthController {
                             userPrincipal.getUsername(),
                             userPrincipal.getEmail(),
                             sessionId,
+                            jwt,
                             userPrincipal.getAuthorities().toString(),
                             mfaRequired,
                             mfaMessage)));
 
         } catch (org.springframework.security.authentication.LockedException e) {
             log.warn("Login denied: Account locked for user: {}", loginRequest.getUsername());
+            auditLogService.logEvent("AUTH", "LOGIN_DENIED", "WARNING", 
+                loginRequest.getUsername(), loginRequest.getUsername(), "Login denied (Account Locked)", 
+                null, "DENIED");
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Account is locked. Please contact support."));
         } catch (org.springframework.security.authentication.DisabledException e) {
             log.warn("Login denied: Account disabled for user: {}", loginRequest.getUsername());
+            auditLogService.logEvent("AUTH", "LOGIN_DENIED", "WARNING", 
+                loginRequest.getUsername(), loginRequest.getUsername(), "Login denied (Account Disabled)", 
+                null, "DENIED");
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Account is disabled. Please contact an administrator."));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
             log.warn("Login error: Bad credentials for user: {}", loginRequest.getUsername());
+            auditLogService.logEvent("AUTH", "LOGIN_FAILED", "WARNING", 
+                loginRequest.getUsername(), loginRequest.getUsername(), "Failed login attempt (Bad Credentials)", 
+                null, "FAILURE");
             return ResponseEntity
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Invalid username or password"));
         } catch (RuntimeException e) {
             if ("LOGIN_LOCATION_DENIED".equals(e.getMessage())) {
                 log.warn("Login denied due to location restriction for user: {}", loginRequest.getUsername());
+                auditLogService.logEvent("AUTH", "LOGIN_DENIED", "WARNING", 
+                    loginRequest.getUsername(), loginRequest.getUsername(), "Login denied (Location Restriction)", 
+                    null, "DENIED");
                 return ResponseEntity
                         .status(HttpStatus.FORBIDDEN)
                         .body(ApiResponse.error(
@@ -168,7 +195,16 @@ public class AuthController {
     @ApiOperation("Logout user and invalidate session")
     public ResponseEntity<ApiResponse> logout(HttpServletRequest request) {
         try {
+            UserPrincipal currentUser = null;
+            try { currentUser = authService.getCurrentUser(); } catch (Exception ignored) {}
+            String username = currentUser != null ? currentUser.getUsername() : "UNKNOWN";
+            
             authService.logout(request);
+            
+            auditLogService.logEvent("AUTH", "LOGOUT", "INFO", 
+                username, username, "User logged out", 
+                null, "SUCCESS");
+                
             return ResponseEntity.ok(ApiResponse.success("Logged out successfully"));
         } catch (Exception e) {
             log.error("Logout error: {}", e.getMessage());
@@ -205,6 +241,11 @@ public class AuthController {
 
         } catch (Exception e) {
             log.error("Error getting current user: {}", e.getMessage());
+            if (e.getMessage() != null && e.getMessage().contains("User not found")) {
+                return ResponseEntity
+                        .status(HttpStatus.UNAUTHORIZED)
+                        .body(ApiResponse.error("Session stale: User not found"));
+            }
             return ResponseEntity
                     .status(HttpStatus.INTERNAL_SERVER_ERROR)
                     .body(ApiResponse.error("Error retrieving user data"));
@@ -279,8 +320,15 @@ public class AuthController {
                     log.info("🔓 Session {} unlocked - MFA verified for user {}", session.getId(), currentUser.getUsername());
                 }
                 
+                auditLogService.logEvent("AUTH", "MFA_VERIFIED", "INFO", 
+                    currentUser.getUsername(), currentUser.getUsername(), "MFA verification successful", 
+                    null, "SUCCESS");
+                
                 return ResponseEntity.ok(ApiResponse.success("MFA verified and device trusted successfully"));
             } else {
+                auditLogService.logEvent("AUTH", "MFA_FAILED", "WARNING", 
+                    currentUser.getUsername(), currentUser.getUsername(), "MFA verification failed", 
+                    null, "FAILURE");
                 return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error("Invalid OTP. Please try again."));
             }
         } catch (Exception e) {
@@ -319,20 +367,16 @@ public class AuthController {
     @DeleteMapping("/trusted-devices/{id}/revoke")
     @ApiOperation("Revoke trust for a device")
     public ResponseEntity<ApiResponse> revokeTrustedDevice(@PathVariable Long id) {
+        UserPrincipal currentUser = authService.getCurrentUser();
+        if (currentUser == null) {
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
+        }
         try {
-            UserPrincipal currentUser = authService.getCurrentUser();
-            if (currentUser == null) {
-                return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
-            }
-
-            boolean revoked = riskEvaluatorService.revokeTrustedDevice(currentUser.getId(), id);
-            if (revoked) {
-                return ResponseEntity.ok(ApiResponse.success("Device trust revoked successfully"));
-            } else {
-                return ResponseEntity.status(HttpStatus.NOT_FOUND).body(ApiResponse.error("Device not found or not owned by you"));
-            }
+            riskEvaluatorService.revokeDevice(currentUser.getId(), id);
+            return ResponseEntity.ok(ApiResponse.success("Device trust revoked successfully. Associated sessions terminated."));
         } catch (Exception e) {
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("Failed to revoke device trust"));
+            log.error("Error revoking device {}: {}", id, e.getMessage());
+            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
         }
     }
 
@@ -344,38 +388,21 @@ public class AuthController {
         public String username;
         public String email;
         public String sessionId;
+        public String token;
         public String roles;
         public boolean mfaRequired;
         public String mfaMessage;
 
-        public LoginResponse(Long id, String username, String email, String sessionId, String roles, boolean mfaRequired, String mfaMessage) {
+        public LoginResponse(Long id, String username, String email, String sessionId, String token, String roles, boolean mfaRequired, String mfaMessage) {
             this.id = id;
             this.username = username;
             this.email = email;
             this.sessionId = sessionId;
+            this.token = token;
             this.roles = roles;
             this.mfaRequired = mfaRequired;
             this.mfaMessage = mfaMessage;
         }
     }
 
-    /**
-     * Revoke trust for a device
-     */
-    @PostMapping("/revoke-device/{id}")
-    @ApiOperation("Revoke trust for a specific device")
-    public ResponseEntity<ApiResponse> revokeTrustedDevice(@PathVariable Long id) {
-        UserPrincipal currentUser = authService.getCurrentUser();
-        if (currentUser == null) {
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Not authenticated"));
-        }
-
-        try {
-            riskEvaluatorService.revokeDevice(currentUser.getId(), id);
-            return ResponseEntity.ok(ApiResponse.success("Device trust revoked successfully. Associated sessions terminated."));
-        } catch (Exception e) {
-            log.error("Error revoking device {}: {}", id, e.getMessage());
-            return ResponseEntity.status(HttpStatus.BAD_REQUEST).body(ApiResponse.error(e.getMessage()));
-        }
-    }
 }

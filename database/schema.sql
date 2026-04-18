@@ -170,6 +170,48 @@ GO
 -- INSERT DEFAULT DATA
 -- ================================================
 
+-- location_config table
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[location_config]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE location_config (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        center_latitude FLOAT NOT NULL,
+        center_longitude FLOAT NOT NULL,
+        radius_km FLOAT NOT NULL,
+        location_name VARCHAR(200),
+        enabled BIT NOT NULL DEFAULT 1,
+        created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        updated_at DATETIME2 DEFAULT SYSDATETIME()
+    );
+END
+GO
+
+-- Add assigned_location_id column to users
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'users') AND name = 'assigned_location_id')
+    ALTER TABLE users ADD assigned_location_id BIGINT NULL REFERENCES location_config(id);
+GO
+
+-- trusted_devices table
+IF NOT EXISTS (SELECT * FROM sys.objects WHERE object_id = OBJECT_ID(N'[dbo].[trusted_devices]') AND type in (N'U'))
+BEGIN
+    CREATE TABLE trusted_devices (
+        id BIGINT IDENTITY(1,1) PRIMARY KEY,
+        user_id BIGINT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+        device_id VARCHAR(255) NOT NULL,
+        device_name VARCHAR(100),
+        is_trusted BIT DEFAULT 1,
+        last_login_time DATETIME2,
+        created_at DATETIME2 NOT NULL DEFAULT SYSDATETIME(),
+        INDEX idx_user_device (user_id, device_id)
+    );
+END
+GO
+
+-- Add device_name to user_sessions
+IF NOT EXISTS (SELECT * FROM sys.columns WHERE object_id = OBJECT_ID(N'user_sessions') AND name = 'device_name')
+    ALTER TABLE user_sessions ADD device_name VARCHAR(100);
+GO
+
 -- Insert default roles
 IF NOT EXISTS (SELECT 1 FROM roles WHERE name = 'ROLE_USER')
     INSERT INTO roles (name, description) VALUES ('ROLE_USER', 'Standard user role');
