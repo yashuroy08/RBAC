@@ -76,9 +76,12 @@ const MathematicalLoader = ({ text = "Computing State...", fullScreen = true }) 
                     
                     {/* Orbiting Particle 1 */}
                     <motion.circle
-                        r="3"
+                        cx={50}
+                        cy={15}
+                        r={3}
                         fill="var(--color-signal)"
                         style={{ filter: 'drop-shadow(0 0 4px var(--color-signal))' }}
+                        initial={{ cx: 50, cy: 15 }}
                         animate={{
                             cx: [50, 85, 50, 15, 50],
                             cy: [15, 50, 85, 50, 15]
@@ -87,9 +90,12 @@ const MathematicalLoader = ({ text = "Computing State...", fullScreen = true }) 
                     />
                     {/* Orbiting Particle 2 */}
                     <motion.circle
-                        r="2.5"
+                        cx={85}
+                        cy={50}
+                        r={2.5}
                         fill="var(--color-command)"
                         style={{ filter: 'drop-shadow(0 0 4px var(--color-command))' }}
+                        initial={{ cx: 85, cy: 50 }}
                         animate={{
                             cx: [85, 50, 15, 50, 85],
                             cy: [50, 85, 50, 15, 50]

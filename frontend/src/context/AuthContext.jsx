@@ -13,11 +13,19 @@ export const AuthProvider = ({ children }) => {
 
     const checkAuth = async () => {
         try {
+            // Only check auth if we have a stored token
+            const token = localStorage.getItem('rbac_token');
+            if (!token) {
+                setUser(null);
+                setLoading(false);
+                return;
+            }
             const response = await authAPI.getCurrentUser();
             if (response.data.success) {
                 setUser(response.data.data);
             }
         } catch (error) {
+            localStorage.removeItem('rbac_token');
             setUser(null);
         } finally {
             setLoading(false);
@@ -68,6 +76,10 @@ export const AuthProvider = ({ children }) => {
         };
 
         const response = await authAPI.login(loginData);
+        // Store JWT token for cross-origin auth
+        if (response.data.success && response.data.data?.token) {
+            localStorage.setItem('rbac_token', response.data.data.token);
+        }
         // ONLY set user if MFA is not required. 
         // If MFA is required, we wait until it's verified to set the user state.
         if (response.data.success && !response.data.data?.mfaRequired) {
@@ -82,7 +94,12 @@ export const AuthProvider = ({ children }) => {
     };
 
     const logout = async () => {
-        await authAPI.logout();
+        try {
+            await authAPI.logout();
+        } catch (e) {
+            // Logout may fail if session expired, that's OK
+        }
+        localStorage.removeItem('rbac_token');
         setUser(null);
     };
 

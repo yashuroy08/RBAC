@@ -9,7 +9,9 @@ import org.springframework.security.core.GrantedAuthority;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PostConstruct;
-import java.security.Key;
+import javax.crypto.SecretKey;
+import java.nio.charset.StandardCharsets;
+import java.security.MessageDigest;
 import java.util.Date;
 import java.util.stream.Collectors;
 
@@ -17,17 +19,33 @@ import java.util.stream.Collectors;
 @Slf4j
 public class JwtTokenProvider {
 
-    @Value("${JWT_SECRET:antigravity_identity_super_secret_key_for_jwt_signing_2026}")
+    @Value("${JWT_SECRET:antigravity_identity_super_secret_key_for_jwt_signing_2026_default_fallback}")
     private String jwtSecret;
 
     @Value("${app.jwt.expiration-ms:86400000}") // 24 hours
     private int jwtExpirationInMs;
 
-    private Key key;
+    private SecretKey key;
 
     @PostConstruct
     public void init() {
-        this.key = Keys.hmacShaKeyFor(jwtSecret.getBytes());
+        try {
+            byte[] secretBytes = jwtSecret.getBytes(StandardCharsets.UTF_8);
+            
+            // HS512 requires at least 64 bytes. If secret is too short, hash it with SHA-512
+            // to produce a reliable 64-byte key regardless of input length.
+            if (secretBytes.length < 64) {
+                log.warn("JWT_SECRET is shorter than 64 bytes ({}), hashing with SHA-512 for HS512 compatibility.", secretBytes.length);
+                MessageDigest digest = MessageDigest.getInstance("SHA-512");
+                secretBytes = digest.digest(secretBytes);
+            }
+            
+            this.key = Keys.hmacShaKeyFor(secretBytes);
+            log.info("✅ JWT Token Provider initialized successfully.");
+        } catch (Exception e) {
+            log.error("❌ Failed to initialize JWT key, generating a secure random key: {}", e.getMessage());
+            this.key = Keys.secretKeyFor(SignatureAlgorithm.HS512);
+        }
     }
 
     public String generateToken(Authentication authentication) {
@@ -44,7 +62,7 @@ public class JwtTokenProvider {
                 .setSubject(Long.toString(userPrincipal.getId()))
                 .claim("username", userPrincipal.getUsername())
                 .claim("roles", roles)
-                .setIssuedAt(new Date())
+                .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
                 .compact();

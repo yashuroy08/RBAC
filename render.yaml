@@ -2,23 +2,15 @@ services:
   - type: web
     name: rbac-backend
     runtime: docker
+    plan: free
+    healthCheckPath: /api/auth/health
     envVars:
       - key: PORT
         value: 8081
       - key: SPRING_DATASOURCE_URL
-        value: jdbc:postgresql://${RBAC_DB_HOST}:${RBAC_DB_PORT}/${RBAC_DB_NAME}
-      - key: RBAC_DB_HOST
         fromDatabase:
           name: rbac-db
-          property: host
-      - key: RBAC_DB_PORT
-        fromDatabase:
-          name: rbac-db
-          property: port
-      - key: RBAC_DB_NAME
-        fromDatabase:
-          name: rbac-db
-          property: database
+          property: connectionString
       - key: SPRING_DATASOURCE_USERNAME
         fromDatabase:
           name: rbac-db
@@ -34,7 +26,13 @@ services:
       - key: JWT_SECRET
         generateValue: true
       - key: ALLOWED_ORIGINS
-        value: https://threads-fashion.vercel.app,https://threads-fashion-backend.onrender.com,http://localhost:5173
+        value: https://rbac-guard.vercel.app,https://threads-fashion.vercel.app,http://localhost:5173,http://localhost:3000
+      - key: SESSION_COOKIE_SECURE
+        value: "true"
+      - key: SESSION_COOKIE_SAMESITE
+        value: none
+      - key: SHOW_SQL
+        value: "false"
 
 databases:
   - name: rbac-db

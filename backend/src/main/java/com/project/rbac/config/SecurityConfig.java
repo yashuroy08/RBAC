@@ -2,6 +2,7 @@ package com.project.rbac.config;
 
 import com.project.rbac.security.CustomUserDetailsService;
 import lombok.RequiredArgsConstructor;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.security.authentication.AuthenticationManager;
@@ -26,10 +27,10 @@ import java.util.Collections;
  * 
  * Configures:
  * 1. BCrypt password encoding
- * 2. Session-based authentication
+ * 2. JWT + Session-based authentication
  * 3. Role-based access control
  * 4. Session management and concurrency control
- * 5. CORS configuration
+ * 5. CORS configuration for cross-origin deployment
  */
 @Configuration
 @EnableWebSecurity
@@ -41,14 +42,12 @@ public class SecurityConfig {
     private final com.project.rbac.security.MfaEnforcementFilter mfaEnforcementFilter;
     private final com.project.rbac.security.JwtAuthenticationFilter jwtAuthenticationFilter;
 
+    @Value("${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}")
+    private String allowedOriginsEnv;
+
     /**
      * BCrypt Password Encoder Bean
      * Strength: 10 (default) - provides good security/performance balance
-     * 
-     * BCrypt automatically handles:
-     * - Salt generation
-     * - Multiple rounds of hashing
-     * - Secure password storage
      */
     @Bean
     public PasswordEncoder passwordEncoder() {
@@ -79,11 +78,11 @@ public class SecurityConfig {
     /**
      * HTTP Security Configuration
      * 
-     * Key Features:
-     * - Session-based authentication
-     * - Role-based endpoint protection
-     * - Session fixation protection
-     * - Concurrent session control
+     * CSRF is disabled because:
+     * - This is a stateless REST API using JWT tokens
+     * - Frontend (Vercel) and Backend (Render) are on different domains
+     * - CSRF cookies cannot work cross-origin without complex configuration
+     * - JWT in Authorization header provides equivalent protection
      */
     @Bean
     public SecurityFilterChain filterChain(HttpSecurity http) throws Exception {
@@ -94,24 +93,23 @@ public class SecurityConfig {
                 // CORS configuration
                 .cors().and()
 
-                // CSRF Configuration
-                // NOTE: Enabled using CookieCsrfTokenRepository for React frontend
-                .csrf()
-                .csrfTokenRepository(org.springframework.security.web.csrf.CookieCsrfTokenRepository.withHttpOnlyFalse())
-                .and()
+                // CSRF disabled for REST API with JWT authentication
+                .csrf().disable()
 
                 // MFA Enforcement Filter
-                .addFilterAfter(mfaEnforcementFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
-                
+                .addFilterAfter(mfaEnforcementFilter,
+                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+
                 // JWT Authentication Filter
-                .addFilterBefore(jwtAuthenticationFilter, org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
+                .addFilterBefore(jwtAuthenticationFilter,
+                        org.springframework.security.web.authentication.UsernamePasswordAuthenticationFilter.class)
 
                 // Session Management Configuration
                 .sessionManagement()
                 .sessionCreationPolicy(SessionCreationPolicy.IF_REQUIRED)
-                .sessionFixation().migrateSession() // Prevent session fixation attacks
-                .maximumSessions(10) // Allow up to 10 concurrent sessions (Risk Evaluator will handle)
-                .maxSessionsPreventsLogin(false) // Don't block new logins, let Risk Evaluator handle it
+                .sessionFixation().migrateSession()
+                .maximumSessions(10)
+                .maxSessionsPreventsLogin(false)
                 .and()
                 .and()
 
@@ -120,6 +118,7 @@ public class SecurityConfig {
                 // Public endpoints - no authentication required
                 .antMatchers("/api/auth/**").permitAll()
                 .antMatchers("/api/public/**").permitAll()
+                .antMatchers("/").permitAll() // Root health endpoint
 
                 // Swagger documentation endpoints
                 .antMatchers(
@@ -150,8 +149,8 @@ public class SecurityConfig {
                 .deleteCookies("JSESSIONID", "RBAC_SESSION")
                 .logoutSuccessHandler((request, response, authentication) -> {
                     response.setStatus(200);
-                    response.getWriter().write("{\"success\":true,\"message\":\"Logged out successfully\"}");
                     response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":true,\"message\":\"Logged out successfully\"}");
                 })
                 .and()
 
@@ -159,14 +158,14 @@ public class SecurityConfig {
                 .exceptionHandling()
                 .authenticationEntryPoint((request, response, authException) -> {
                     response.setStatus(401);
-                    response.getWriter().write("{\"success\":false,\"message\":\"Unauthorized - Please login\"}");
                     response.setContentType("application/json");
+                    response.getWriter().write("{\"success\":false,\"message\":\"Unauthorized - Please login\"}");
                 })
                 .accessDeniedHandler((request, response, accessDeniedException) -> {
                     response.setStatus(403);
+                    response.setContentType("application/json");
                     response.getWriter()
                             .write("{\"success\":false,\"message\":\"Access Denied - Insufficient permissions\"}");
-                    response.setContentType("application/json");
                 });
 
         return http.build();
@@ -174,26 +173,21 @@ public class SecurityConfig {
 
     /**
      * CORS Configuration
-     * Allows requests from React frontend
+     * Supports both local dev and cross-origin production deployment
      */
     @Bean
     public CorsConfigurationSource corsConfigurationSource() {
         CorsConfiguration configuration = new CorsConfiguration();
-        
-        // Read allowed origins from environment variable (comma separated)
-        String allowedOriginsEnv = System.getenv("ALLOWED_ORIGINS");
+
+        // Parse allowed origins from environment variable
         if (allowedOriginsEnv != null && !allowedOriginsEnv.isEmpty()) {
             configuration.setAllowedOriginPatterns(Arrays.asList(allowedOriginsEnv.split(",")));
         } else {
-            // Default for development & Production Ecommerce App
             configuration.setAllowedOrigins(Arrays.asList(
-                "http://localhost:3000",
-                "http://localhost:5173",
-                "https://threads-fashion.vercel.app",
-                "https://threads-fashion-backend.onrender.com"
-            ));
+                    "http://localhost:3000",
+                    "http://localhost:5173"));
         }
-        
+
         configuration.setAllowedMethods(Arrays.asList("GET", "POST", "PUT", "DELETE", "OPTIONS", "PATCH"));
         configuration.setAllowedHeaders(Arrays.asList("Authorization", "Cache-Control", "Content-Type",
                 "X-Requested-With", "Origin", "Accept", "X-Custom-Header"));

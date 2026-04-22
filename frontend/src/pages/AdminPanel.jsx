@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import toast from 'react-hot-toast';
 import { useAuth } from '../context/AuthContext';
 import { adminAPI, riskAPI } from '../services/api';
 import Navbar from '../components/Navbar';
@@ -10,14 +11,17 @@ import {
     ChevronDown, Info, AlertTriangle, Search, RefreshCw,
     Monitor, Smartphone, Globe, Clock, User, X,
     Lock, Unlock, ShieldAlert, Zap, Globe2, ScanFace,
-    Filter, ArrowUpDown, ClipboardList, CheckCircle2, XCircle, Download
+    Filter, ArrowUpDown, ClipboardList, CheckCircle2, XCircle, Download, LayoutDashboard
 } from 'lucide-react';
+import { BarChart, Bar, XAxis, Tooltip as RechartsTooltip, ResponsiveContainer, Cell } from 'recharts';
+import { RiskTimeline, SessionActivityChart } from '../components/DashboardCharts';
 
 const TABS = [
-    { key: 'users', label: 'User Management', icon: <Users size={14} /> },
-    { key: 'location', label: 'Location Policy', icon: <MapPin size={14} /> },
-    { key: 'risk', label: 'Risk Monitor', icon: <Activity size={14} /> },
-    { key: 'audit', label: 'Audit Logs', icon: <ClipboardList size={14} /> },
+    { key: 'overview', label: 'Overview', icon: <LayoutDashboard size={14} /> },
+    { key: 'users', label: 'Identities', icon: <Users size={14} /> },
+    { key: 'location', label: 'Policy Hub', icon: <MapPin size={14} /> },
+    { key: 'risk', label: 'Surveillance', icon: <Activity size={14} /> },
+    { key: 'audit', label: 'Audit Trail', icon: <ClipboardList size={14} /> },
 ];
 
 const AdminPanel = () => {
@@ -30,7 +34,6 @@ const AdminPanel = () => {
     const [selectedUserSessions, setSelectedUserSessions] = useState([]);
     const [loading, setLoading] = useState(false);
     const [sessionsLoading, setSessionsLoading] = useState(false);
-    const [notification, setNotification] = useState(null);
     const [searchQuery, setSearchQuery] = useState('');
     
     // Filtering & Sorting State
@@ -47,6 +50,13 @@ const AdminPanel = () => {
     const [auditLogs, setAuditLogs] = useState([]);
     const [auditSearchQuery, setAuditSearchQuery] = useState('');
     const [auditLoading, setAuditLoading] = useState(false);
+    const [auditPage, setAuditPage] = useState(1);
+    const itemsPerPage = 10;
+
+    // Dashboard Stats State
+    const [dashboardStats, setDashboardStats] = useState(null);
+    const [statsRange, setStatsRange] = useState('hours');
+    const [statsLoading, setStatsLoading] = useState(false);
 
     useEffect(() => {
         if (isAdmin()) {
@@ -54,8 +64,16 @@ const AdminPanel = () => {
             fetchAllRisk();
             fetchLocationConfigs();
             fetchAuditLogs();
+            fetchDashboardStats();
         }
     }, [isAdmin]);
+
+    // Fetch stats when range changes
+    useEffect(() => {
+        if (isAdmin() && activeTab === 'overview') {
+            fetchDashboardStats();
+        }
+    }, [statsRange, activeTab]);
 
     // Debounce search query for audit logs
     useEffect(() => {
@@ -106,6 +124,18 @@ const AdminPanel = () => {
             console.error('Error fetching audit logs', e);
         } finally {
             setAuditLoading(false);
+        }
+    };
+
+    const fetchDashboardStats = async () => {
+        try {
+            setStatsLoading(true);
+            const res = await adminAPI.getDashboardStats(statsRange);
+            setDashboardStats(res.data.data);
+        } catch (e) {
+            console.error('Error fetching dashboard stats', e);
+        } finally {
+            setStatsLoading(false);
         }
     };
 
@@ -165,8 +195,9 @@ const AdminPanel = () => {
     };
 
     const showNotification = (text, type) => {
-        setNotification({ text, type });
-        setTimeout(() => setNotification(null), 4000);
+        if (type === 'success') toast.success(text);
+        else if (type === 'error') toast.error(text);
+        else toast(text);
     };
 
     /* Actions */
@@ -286,33 +317,28 @@ const AdminPanel = () => {
         return matchesSearch && matchesLevel && matchesStatus;
     });
 
+    const filteredAuditLogs = auditLogs.filter(log => {
+        if (!auditSearchQuery) return true;
+        const query = auditSearchQuery.toLowerCase();
+        return (
+            (log.action && log.action.toLowerCase().includes(query)) ||
+            (log.description && log.description.toLowerCase().includes(query)) ||
+            (log.actorUsername && log.actorUsername.toLowerCase().includes(query)) ||
+            (log.targetUsername && log.targetUsername.toLowerCase().includes(query))
+        );
+    });
+
+    const paginatedAuditLogs = filteredAuditLogs.slice(
+        (auditPage - 1) * itemsPerPage,
+        auditPage * itemsPerPage
+    );
+    const totalAuditPages = Math.ceil(filteredAuditLogs.length / itemsPerPage) || 1;
+
     return (
         <div className="min-h-screen" style={{ background: 'var(--color-bg-deep)' }}>
             <Navbar />
 
             <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col gap-6">
-                {/* Notification */}
-                <AnimatePresence>
-                    {notification && (
-                        <motion.div
-                            initial={{ opacity: 0, y: -12 }}
-                            animate={{ opacity: 1, y: 0 }}
-                            exit={{ opacity: 0, y: -12 }}
-                            className="flex items-center gap-2.5 p-3 rounded-lg text-xs font-semibold z-50 fixed top-20 right-8"
-                            style={{
-                                background: notification.type === 'error' ? 'var(--color-crit-bg)' : 'var(--color-safe-bg)',
-                                color: notification.type === 'error' ? 'var(--color-crit-text)' : 'var(--color-safe-text)',
-                                border: `1px solid ${notification.type === 'error' ? 'var(--color-crit-solid)' : 'var(--color-safe)'}`,
-                                boxShadow: '0 8px 16px rgba(0,0,0,0.4)',
-                                backdropFilter: 'blur(8px)'
-                            }}
-                        >
-                            {notification.type === 'error' ? <AlertTriangle size={14} /> : <Shield size={14} />}
-                            {notification.text}
-                        </motion.div>
-                    )}
-                </AnimatePresence>
-
                 {/* Header */}
                 <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
                     <div>
@@ -344,13 +370,107 @@ const AdminPanel = () => {
                                 color: 'var(--color-signal)'
                             } : {}}
                         >
-                            {tab.icon} {tab.label}
+                            {tab.icon} <span className="hidden sm:inline">{tab.label}</span>
                         </button>
                     ))}
                 </div>
 
                 {/* Tab Content */}
                 <AnimatePresence mode="wait">
+                    {activeTab === 'overview' && (
+                        <motion.div key="overview"
+                            initial={{ opacity: 0, y: 8 }}
+                            animate={{ opacity: 1, y: 0 }}
+                            exit={{ opacity: 0, y: -8 }}
+                            className="space-y-6"
+                        >
+                            {/* Summary Cards */}
+                            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                                <div className="glass-card p-4 flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Global Risk Avg</span>
+                                    <span className="text-2xl font-black text-canvas font-mono">
+                                        {dashboardStats?.averageRiskScore?.toFixed(1) || '0.0'}%
+                                    </span>
+                                    <div className="flex items-center gap-1.5 mt-1">
+                                        <div className="w-full h-1 rounded-full bg-midnight">
+                                            <div className="h-full rounded-full transition-all duration-1000" 
+                                                style={{ 
+                                                    width: `${dashboardStats?.averageRiskScore || 0}%`,
+                                                    background: (dashboardStats?.averageRiskScore || 0) > 60 ? 'var(--color-crit-solid)' : (dashboardStats?.averageRiskScore || 0) > 30 ? 'var(--color-warn)' : 'var(--color-safe)'
+                                                }} 
+                                            />
+                                        </div>
+                                    </div>
+                                </div>
+                                <div className="glass-card p-4 flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Active Sessions</span>
+                                    <span className="text-2xl font-black text-canvas font-mono">{dashboardStats?.activeSessions || 0}</span>
+                                    <span className="text-[9px] text-text-muted flex items-center gap-1 mt-1">
+                                        <Monitor size={10} /> Live web connections
+                                    </span>
+                                </div>
+                                <div className="glass-card p-4 flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">Total Risk Events</span>
+                                    <span className="text-2xl font-black text-canvas font-mono">{dashboardStats?.totalRiskEvents || 0}</span>
+                                    <span className="text-[9px] text-text-muted flex items-center gap-1 mt-1 transition-all">
+                                        <Shield size={10} /> Recorded flagged actions
+                                    </span>
+                                </div>
+                                <div className="glass-card p-4 flex flex-col gap-1">
+                                    <span className="text-[10px] font-bold text-text-muted uppercase tracking-widest">MFA Interventions</span>
+                                    <span className="text-2xl font-black text-canvas font-mono">{dashboardStats?.mfaRequiredUsers || 0}</span>
+                                    <span className="text-[9px] text-text-muted flex items-center gap-1 mt-1">
+                                        <Zap size={10} className="text-warn" /> Active step-up challenges
+                                    </span>
+                                </div>
+                            </div>
+
+                            {/* Charts Grid */}
+                            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                                <RiskTimeline 
+                                    riskHistory={dashboardStats?.riskTimelinePoints?.map(p => ({
+                                        time: p.label,
+                                        score: p.value,
+                                        threshold: 70
+                                    })) || []}
+                                    timeRange={statsRange} 
+                                />
+                                <SessionActivityChart 
+                                    sessions={dashboardStats?.sessionActivityPoints?.map(p => ({
+                                        label: p.label,
+                                        active: p.value,
+                                        closed: Math.floor(p.value * 0.2) // Estimate closed for viz
+                                    })) || []}
+                                    timeRange={statsRange} 
+                                />
+                            </div>
+
+                            {/* Range Selector for Dashboard */}
+                            <div className="flex justify-center pt-2">
+                                <div className="flex bg-midnight/30 p-1 rounded-xl border border-border-subtle shadow-inner">
+                                    {[
+                                        { label: 'Last 12 Hours', val: 'hours' },
+                                        { label: 'Last 7 Days', val: 'days' },
+                                        { label: 'Recent Weeks', val: 'weeks' },
+                                        { label: 'Yearly (Months)', val: 'months' }
+                                    ].map((opt) => (
+                                        <button
+                                            key={opt.val}
+                                            onClick={() => setStatsRange(opt.val)}
+                                            className={`px-4 py-1.5 rounded-lg text-[10px] font-bold transition-all ${
+                                                statsRange === opt.val 
+                                                    ? 'bg-signal text-white shadow-lg scale-105' 
+                                                    : 'text-text-muted hover:text-canvas hover:bg-white/5'
+                                            }`}
+                                        >
+                                            {opt.label}
+                                        </button>
+                                    ))}
+                                </div>
+                                {statsLoading && <RefreshCw size={12} className="animate-spin ml-3 mt-2 text-signal" />}
+                            </div>
+                        </motion.div>
+                    )}
                     {activeTab === 'users' && (
                         <motion.div key="users"
                             initial={{ opacity: 0, y: 8 }}
@@ -448,10 +568,10 @@ const AdminPanel = () => {
                                                 ) : filteredUsers.map(u => (
                                                     <tr key={u.id} 
                                                         onClick={() => setSelectedUser(u)}
-                                                        className="transition-colors cursor-pointer group"
+                                                        className="transition-colors cursor-pointer group hover:bg-white/[0.02]"
                                                         style={{ 
                                                             borderBottom: '1px solid var(--color-border-subtle)',
-                                                            background: selectedUser?.id === u.id ? 'var(--color-bg-elevated)' : 'transparent',
+                                                            background: selectedUser?.id === u.id ? 'var(--color-bg-elevated)' : '',
                                                             boxShadow: selectedUser?.id === u.id ? 'inset 2px 0 0 var(--color-signal)' : 'none'
                                                         }}>
                                                         <td className="py-3 px-4">
@@ -486,9 +606,12 @@ const AdminPanel = () => {
                                     </div>
 
                                     {!loading && filteredUsers.length === 0 && (
-                                        <div className="p-12 text-center text-xs text-text-muted opacity-60">
-                                            <Search size={24} className="mx-auto mb-3" />
-                                            No users matched your search criteria
+                                        <div className="p-20 text-center">
+                                            <div className="w-12 h-12 bg-signal/10 rounded-full flex items-center justify-center mx-auto mb-4 border border-signal/20">
+                                                <Users size={24} className="text-signal opacity-50" />
+                                            </div>
+                                            <h3 className="text-sm font-bold text-canvas mb-1">No Identities Found</h3>
+                                            <p className="text-xs text-text-muted max-w-xs mx-auto">No user records matched your current filtering or search criteria.</p>
                                         </div>
                                     )}
                                 </div>
@@ -496,12 +619,22 @@ const AdminPanel = () => {
                                 {/* Right Column: Details Pane */}
                                 <AnimatePresence>
                                     {selectedUser && (
-                                        <motion.div 
-                                            initial={{ opacity: 0, x: 20 }}
-                                            animate={{ opacity: 1, x: 0 }}
-                                            exit={{ opacity: 0, x: 20 }}
-                                            className="lg:col-span-1 flex flex-col gap-4 overflow-y-auto max-h-[80vh] scrollbar-hide"
-                                        >
+                                        <>
+                                            {/* Mobile Backdrop */}
+                                            <motion.div 
+                                                initial={{ opacity: 0 }}
+                                                animate={{ opacity: 1 }}
+                                                exit={{ opacity: 0 }}
+                                                onClick={() => setSelectedUser(null)}
+                                                className="fixed inset-0 bg-black/60 z-40 lg:hidden backdrop-blur-sm"
+                                            />
+                                            <motion.div 
+                                                initial={{ opacity: 0, x: '100%' }}
+                                                animate={{ opacity: 1, x: 0 }}
+                                                exit={{ opacity: 0, x: '100%' }}
+                                                transition={{ type: "spring", stiffness: 300, damping: 30 }}
+                                                className="fixed inset-y-0 right-0 z-50 w-full sm:w-[400px] bg-bg-deep border-l border-border-subtle shadow-2xl p-4 lg:relative lg:inset-auto lg:w-auto lg:p-0 lg:shadow-none lg:border-l-0 lg:bg-transparent lg:col-span-1 flex flex-col gap-4 overflow-y-auto max-h-screen lg:max-h-[80vh] scrollbar-hide"
+                                            >
                                             {/* User Identity Details */}
                                             <div className="glass-card p-4 relative overflow-hidden flex-shrink-0">
                                                 <button onClick={() => setSelectedUser(null)} className="absolute top-3 right-3 text-text-muted hover:text-white transition-colors p-1 hover:bg-white/5 rounded">
@@ -569,10 +702,13 @@ const AdminPanel = () => {
                                                         
                                                         <div className="flex flex-col gap-2 mb-3 max-h-48 overflow-y-auto pr-1">
                                                             {sessionsLoading ? (
-                                                                <div className="flex justify-center py-4"><div className="w-4 h-4 border-2 border-signal/30 border-t-signal rounded-full animate-spin" /></div>
+                                                                <div className="space-y-2">
+                                                                    <AdaptiveSkeleton type="list" />
+                                                                    <AdaptiveSkeleton type="list" />
+                                                                </div>
                                                             ) : selectedUserSessions.length > 0 ? (
                                                                 selectedUserSessions.map((session, idx) => (
-                                                                    <div key={idx} className="p-2 rounded bg-midnight/30 border border-border-subtle/50 text-[9px] flex items-center justify-between group">
+                                                                    <div key={idx} className="p-2.5 rounded-lg bg-midnight/30 border border-border-subtle/50 text-[9px] flex items-center justify-between group hover:border-signal/30 transition-colors">
                                                                         <div className="flex items-center gap-2 overflow-hidden">
                                                                             <Monitor size={10} className="text-text-muted shrink-0" />
                                                                             <div className="truncate">
@@ -670,6 +806,7 @@ const AdminPanel = () => {
                                                 </div>
                                             </div>
                                         </motion.div>
+                                        </>
                                     )}
                                 </AnimatePresence>
                             </div>
@@ -753,6 +890,36 @@ const AdminPanel = () => {
                                         </div>
                                     </div>
                                 </div>
+                                
+                                {/* Risk Distribution Chart */}
+                                {filteredRiskData.length > 0 && (
+                                    <div className="p-4" style={{ borderBottom: '1px solid var(--color-border-subtle)' }}>
+                                        <h3 className="text-xs font-bold text-text-muted uppercase tracking-wider mb-4 flex items-center gap-1.5"><Activity size={12}/> Risk Distribution</h3>
+                                        <div className="h-32 w-full">
+                                            <ResponsiveContainer width="100%" height="100%">
+                                                <BarChart data={[
+                                                    { name: 'SAFE', value: filteredRiskData.filter(r => (r.riskScore || 0) < 40).length, color: 'var(--color-safe)' },
+                                                    { name: 'ELEVATED', value: filteredRiskData.filter(r => (r.riskScore || 0) >= 40 && (r.riskScore || 0) < 70).length, color: 'var(--color-warn)' },
+                                                    { name: 'CRITICAL', value: filteredRiskData.filter(r => (r.riskScore || 0) >= 70).length, color: 'var(--color-crit-solid)' }
+                                                ]}>
+                                                    <XAxis dataKey="name" tick={{ fontSize: 9, fill: 'var(--color-text-muted)', fontWeight: 'bold' }} axisLine={false} tickLine={false} />
+                                                    <RechartsTooltip cursor={{ fill: 'rgba(255,255,255,0.03)' }} contentStyle={{ background: 'var(--color-bg-elevated)', border: '1px solid var(--color-border-subtle)', borderRadius: '6px', fontSize: '10px', color: 'white' }} />
+                                                    <Bar dataKey="value" radius={[4, 4, 0, 0]} maxBarSize={40}>
+                                                        {
+                                                            [
+                                                                { name: 'SAFE', color: 'var(--color-safe)' },
+                                                                { name: 'ELEVATED', color: 'var(--color-warn)' },
+                                                                { name: 'CRITICAL', color: 'var(--color-crit-solid)' }
+                                                            ].map((entry, index) => (
+                                                                <Cell key={`cell-${index}`} fill={entry.color} />
+                                                            ))
+                                                        }
+                                                    </Bar>
+                                                </BarChart>
+                                            </ResponsiveContainer>
+                                        </div>
+                                    </div>
+                                )}
 
                                 <div className="overflow-x-auto min-h-[300px]">
                                     <table className="w-full">
@@ -904,7 +1071,7 @@ const AdminPanel = () => {
                                                         </td>
                                                     </tr>
                                                 ))
-                                            ) : auditLogs.map((log, i) => (
+                                            ) : paginatedAuditLogs.map((log, i) => (
                                                 <tr key={log.id} className="transition-all hover:bg-white/[0.03] animate-in fade-in"
                                                     style={{ borderBottom: '1px solid var(--color-border-subtle)', animationDelay: `${i * 30}ms` }}>
                                                     <td className="py-3 px-4 text-[10px] font-mono text-text-muted whitespace-nowrap">
@@ -942,10 +1109,34 @@ const AdminPanel = () => {
                                         </tbody>
                                     </table>
                                     
-                                    {!auditLoading && auditLogs.length === 0 && (
+                                    {!auditLoading && filteredAuditLogs.length === 0 && (
                                         <div className="p-12 text-center text-xs text-text-muted opacity-60">
                                             <ClipboardList size={24} className="mx-auto mb-3 opacity-50" />
                                             No audit logs found matching criteria
+                                        </div>
+                                    )}
+
+                                    {!auditLoading && totalAuditPages > 1 && (
+                                        <div className="flex items-center justify-between p-4 border-t border-border-subtle/50">
+                                            <span className="text-[10px] text-text-muted font-bold tracking-wider">
+                                                PAGE {auditPage} OF {totalAuditPages}
+                                            </span>
+                                            <div className="flex items-center gap-2">
+                                                <button 
+                                                    onClick={() => setAuditPage(prev => Math.max(1, prev - 1))}
+                                                    disabled={auditPage === 1}
+                                                    className="btn btn-secondary py-1.5 px-3 text-[10px] disabled:opacity-50"
+                                                >
+                                                    Previous
+                                                </button>
+                                                <button 
+                                                    onClick={() => setAuditPage(prev => Math.min(totalAuditPages, prev + 1))}
+                                                    disabled={auditPage === totalAuditPages}
+                                                    className="btn btn-secondary py-1.5 px-3 text-[10px] disabled:opacity-50"
+                                                >
+                                                    Next
+                                                </button>
+                                            </div>
                                         </div>
                                     )}
                                 </div>

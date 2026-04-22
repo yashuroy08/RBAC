@@ -442,7 +442,7 @@ const LocationSettings = () => {
                     </div>
 
                     {/* Existing Configs */}
-                    {allConfigs.length > 0 && (
+                    {allConfigs.length > 0 ? (
                         <div className="mt-5 pt-4" style={{ borderTop: '1px solid var(--color-border-subtle)' }}>
                             <p className="sec-label mb-3">Saved Configurations</p>
                             <div className="space-y-2">
@@ -501,6 +501,14 @@ const LocationSettings = () => {
                                     </div>
                                 ))}
                             </div>
+                        </div>
+                    ) : (
+                        <div className="mt-5 pt-10 text-center border-t border-border-subtle">
+                            <div className="w-10 h-10 bg-signal/10 rounded-full flex items-center justify-center mx-auto mb-3 border border-signal/20">
+                                <MapPin size={20} className="text-signal opacity-50" />
+                            </div>
+                            <h3 className="text-xs font-bold text-canvas mb-1">No Zones Configured</h3>
+                            <p className="text-[10px] text-text-muted">Create a new geographic boundary above.</p>
                         </div>
                     )}
                 </div>

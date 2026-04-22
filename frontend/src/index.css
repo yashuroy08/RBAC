@@ -74,6 +74,9 @@
 }
 
 @layer base {
+  html {
+    scroll-behavior: smooth;
+  }
   body {
     @apply bg-bg-deep text-text-main antialiased min-h-screen overflow-x-hidden;
     font-family: var(--font-main);

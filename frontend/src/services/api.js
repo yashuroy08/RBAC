@@ -1,6 +1,10 @@
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL || '/api';
+// Ensure the base URL always ends with /api for correct path resolution.
+// In production: VITE_API_BASE_URL=https://rbac-vsr2.onrender.com → baseURL = https://rbac-vsr2.onrender.com/api
+// In local dev: falls back to /api (Vite proxy handles forwarding to localhost:8081)
+const rawBase = import.meta.env.VITE_API_BASE_URL || '';
+const API_BASE_URL = rawBase ? `${rawBase.replace(/\/+$/, '')}/api` : '/api';
 
 const api = axios.create({
     baseURL: API_BASE_URL,
@@ -10,6 +14,15 @@ const api = axios.create({
     },
 });
 
+// Request interceptor — attach JWT token from localStorage for cross-origin auth
+api.interceptors.request.use((config) => {
+    const token = localStorage.getItem('rbac_token');
+    if (token) {
+        config.headers.Authorization = `Bearer ${token}`;
+    }
+    return config;
+});
+
 // Response interceptor for error handling
 api.interceptors.response.use(
     (response) => response,
@@ -17,6 +30,7 @@ api.interceptors.response.use(
         // Only redirect to login if we get a 401 AND we are not already on the login page
         // This prevents infinite refresh loops
         if (error.response?.status === 401 && window.location.pathname !== '/login') {
+            localStorage.removeItem('rbac_token');
             window.location.href = '/login';
         }
         return Promise.reject(error);
@@ -57,6 +71,7 @@ export const adminAPI = {
         api.put(`/admin/location/${configId}/toggle?enabled=${enabled}`),
     deleteLocationConfig: (configId) => api.delete(`/admin/location/${configId}`),
     getAuditLogs: (search) => api.get(`/admin/audit-logs${search ? '?search=' + encodeURIComponent(search) : ''}`),
+    getDashboardStats: (range = 'hours') => api.get(`/admin/dashboard/stats?range=${range}`),
 };
 
 export const riskAPI = {
