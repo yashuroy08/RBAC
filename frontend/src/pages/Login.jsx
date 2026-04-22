@@ -26,7 +26,7 @@ const Login = () => {
         setLoading(true);
         setLocationError(false);
         try {
-            const response = await login(formData.username, formData.password);
+            const response = await login(formData);
             if (response && response.success) {
                 if (response.data?.mfaRequired) {
                     setMfaData({
