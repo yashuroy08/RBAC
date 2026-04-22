@@ -1,30 +1,32 @@
 package com.project.rbac.service;
 
 import com.project.rbac.entity.User;
-import com.resend.Resend;
-import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.CreateEmailOptions;
-import com.resend.services.emails.model.CreateEmailResponse;
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.mail.javamail.JavaMailSender;
+import org.springframework.mail.javamail.MimeMessageHelper;
 import org.springframework.stereotype.Service;
 
 import javax.annotation.PostConstruct;
+import javax.mail.MessagingException;
+import javax.mail.internet.MimeMessage;
 import java.util.Map;
 import java.util.Random;
 import java.util.concurrent.ConcurrentHashMap;
 
 /**
- * MFA Service - Handles OTP generation, verification, and email delivery via Resend
+ * MFA Service - Handles OTP generation, verification, and email delivery via Spring Mail (Gmail SMTP)
  */
 @Service
 @Slf4j
 public class MfaService {
 
-    @Value("${resend.api.key:mock}")
-    private String resendApiKey;
+    @Value("${spring.mail.username:mock}")
+    private String mailUsername;
 
-    private Resend resend;
+    @Autowired
+    private JavaMailSender mailSender;
     
     // Simple in-memory storage for OTPs (User ID -> OTP)
     private final Map<Long, String> otpStorage = new ConcurrentHashMap<>();
@@ -32,11 +34,10 @@ public class MfaService {
 
     @PostConstruct
     public void init() {
-        if (!"mock".equalsIgnoreCase(resendApiKey)) {
-            this.resend = new Resend(resendApiKey);
-            log.info("📧 Resend Email Service initialized");
+        if (!"mock".equalsIgnoreCase(mailUsername)) {
+            log.info("📧 Spring Mail Service initialized for user: {}", mailUsername);
         } else {
-            log.warn("📧 Resend API key is 'mock'. MFA codes will only be visible in server logs.");
+            log.warn("📧 Mail username is 'mock'. MFA codes will only be visible in server logs.");
         }
     }
 
@@ -51,7 +52,7 @@ public class MfaService {
         
         log.info("🔐 MFA REQUIRED: User {} (ID {}).", user.getUsername(), userId);
         
-        if (resend != null) {
+        if (!"mock".equalsIgnoreCase(mailUsername)) {
             sendEmail(userEmail, user.getUsername(), otp);
         } else {
             log.info("--------------------------------------------------");
@@ -64,22 +65,29 @@ public class MfaService {
 
     private void sendEmail(String to, String username, String otp) {
         try {
-            CreateEmailOptions params = CreateEmailOptions.builder()
-                    .from("RBAC Security <onboarding@resend.dev>")
-                    .to(to)
-                    .subject("Your RBAC Verification Code")
-                    .html("<strong>Hello " + username + ",</strong><br><br>" +
-                          "A login attempt was detected from a new device. Use the following code to verify your identity:<br><br>" +
-                          "<h1 style='color: #4F46E5;'>" + otp + "</h1><br>" +
-                          "This code will expire in 10 minutes.<br><br>" +
-                          "If you did not attempt to log in, please change your password immediately.")
-                    .build();
+            MimeMessage message = mailSender.createMimeMessage();
+            MimeMessageHelper helper = new MimeMessageHelper(message, true, "UTF-8");
+            
+            helper.setFrom(mailUsername);
+            helper.setTo(to);
+            helper.setSubject("Your RBAC Verification Code");
+            
+            String htmlContent = "<strong>Hello " + username + ",</strong><br><br>" +
+                    "A login attempt was detected from a new device. Use the following code to verify your identity:<br><br>" +
+                    "<h1 style='color: #4F46E5;'>" + otp + "</h1><br>" +
+                    "This code will expire in 10 minutes.<br><br>" +
+                    "If you did not attempt to log in, please change your password immediately.";
+                    
+            helper.setText(htmlContent, true); // Set to true for HTML
 
-            CreateEmailResponse data = resend.emails().send(params);
-            log.info("✅ MFA Email sent successfully to {}. Resend ID: {}", to, data.getId());
-        } catch (ResendException e) {
-            log.error("❌ Failed to send MFA email to {}: {}", to, e.getMessage());
+            mailSender.send(message);
+            log.info("✅ MFA Email sent successfully to {}", to);
+        } catch (MessagingException e) {
+            log.error("❌ Failed to construct MFA email to {}: {}", to, e.getMessage());
             // Fallback to log so user isn't locked out during dev/testing
+            log.info(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
+        } catch (Exception e) {
+            log.error("❌ Failed to send MFA email to {}: {}", to, e.getMessage());
             log.info(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
         }
     }

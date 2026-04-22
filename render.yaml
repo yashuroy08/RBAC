@@ -31,14 +31,17 @@ services:
         value: "true"
       - key: SESSION_COOKIE_SAMESITE
         value: none
-      - key: SHOW_SQL
-        value: "false"
       - key: DB_PLATFORM
         value: postgresql
       - key: HIKARI_MAX_POOL
         value: "5"
-      - key: RESEND_API_KEY
-        sync: false # Set this manually in the Render dashboard
+      # Security keys (to be manually added via Render Dashboard)
+      - key: JWT_SECRET
+        sync: false
+      - key: MAIL_USERNAME
+        sync: false
+      - key: MAIL_PASSWORD
+        sync: false
 
 databases:
   - name: rbac-db
