@@ -2,121 +2,101 @@
 
 ![Project Status](https://img.shields.io/badge/Status-Active-brightgreen)
 ![Tech Stack](https://img.shields.io/badge/Stack-Spring_Boot_%7C_React-blue)
+![Security](https://img.shields.io/badge/Model-Zero_Trust-red)
 
-A sophisticated Role-Based Access Control (RBAC) system integrated with a dynamic Risk Evaluation engine. This platform goes beyond static permissions by analyzing session behavior, geographic locations, and user history to provide an adaptive security layer.
+A production-ready Role-Based Access Control (RBAC) system featuring an integrated **Adaptive Risk Evaluation Engine**. This platform implements security-as-code principles by calculating real-time risk scores based on session telemetry, geolocation, and behavioral analytics.
 
-## 🚀 Overview
+## 🏗️ Architectural Overview
 
-The **Adaptive RBAC & Risk Evaluation System** is designed to provide robust security for modern enterprise applications. It combines traditional RBAC with a real-time risk assessment module that can automatically invalidate sessions or trigger MFA based on suspicious activity.
+The system is designed as a decoupled full-stack application leveraging a **Hybrid Security Model**:
+- **Identity Provider (Backend):** Spring Boot service managing JWT issuance and JDBC-backed session state.
+- **Risk Engine:** A dynamic evaluator that monitors cross-referenced data points to enforce adaptive security policies.
+- **Client Interface (Frontend):** React 18 application with high-fidelity telemetry gathering and administrative orchestration.
 
-### Key Pillars
-- **Zero Trust Principles:** Every request is authenticated and authorized based on real-time context.
-- **Dynamic Risk Assessment:** Real-time calculation of risk scores based on multi-factor inputs.
-- **Session Intelligence:** Proactive management of user sessions with the ability to terminate high-risk sessions instantly.
-
----
-
-## ✨ Features
-
-### 🔐 Advanced RBAC
-- **Granular Permissions:** Assign specific actions to roles and roles to users.
-- **Hierarchical Roles:** Support for Admin, User, and Manager roles with inherited permissions.
-
-### 🛡️ Risk Evaluation Engine
-- **Location-Based Security:** Restrict or flag access from unauthorized geographic regions or IP ranges.
-- **Behavioral Analysis:** Track unsuccessful login attempts and unusual access patterns.
-- **Risk Thresholds:** Customizable thresholds that trigger automated security actions (e.g., logging out all other sessions if risk is too high).
-
-### 🖥️ Interactive Dashboard
-- **Admin Control Panel:** Manage users, roles, and view global security events.
-- **Security Analytics:** Visual representation of risk events and active sessions.
-- **User Activity Logs:** Comprehensive audit trails for all security-sensitive actions.
-
-### 📱 Modern User Experience
-- **Responsive UI:** Built with React and optimized with Framer Motion for smooth transitions.
-- **Interactive Maps:** Integration with Leaflet to visualize login locations.
-- **Secure Authentication:** OTP-supported login and secure password management.
+For a deep dive into the service layer, see our [API Documentation](API_DOCUMENTATION.md).
 
 ---
 
-## 🛠️ Tech Stack
+## 🛡️ Core Security Capabilities
 
-### Backend
-- **Framework:** Spring Boot 2.7.18
-- **Security:** Spring Security (BCrypt, Session Management)
-- **Database:** MS SQL Server
-- **ORM:** Spring Data JPA (Hibernate)
-- **Documentation:** Swagger UI / Springfox
-- **Build Tool:** Maven
+### 1. Dynamic Risk Scoring
+Traditional RBAC is static. Our system adds a fluid intelligence layer:
+- **Spatial Validation:** Real-time Geo-fencing using Google Maps API coordinates.
+- **Behavioral Fingerprinting:** Tracking failure rates, session concurrency, and IP volatility.
+- **Automated Mitigation:** High-risk scores trigger immediate session invalidation and account lockdowns.
 
-### Frontend
-- **Library:** React 18
-- **Build Tool:** Vite
-- **Routing:** React Router DOM
-- **Animations:** Framer Motion
-- **Maps:** Leaflet & React Leaflet
-- **HTTP Client:** Axios
+### 2. Zero-Trust Session Management
+- **JDBC Persistence:** Sessions are persisted in the database to allow for cross-node scalability and administrative termination.
+- **MFA Flow:** Suspicious activity automatically upgrades authentication requirements from standard password to OTP.
+
+### 3. Comprehensive Audit Logic
+- Every administrative action and security event is logged to a non-repudiable audit trail, searchable via the Admin Panel.
 
 ---
 
-## 📂 Project Structure
+## 🛠️ Technology Stack
+
+### Backend Infrastructure
+- **Core:** Spring Boot 2.7.18 (Java 11)
+- **Security:** Spring Security managed lifecycle
+- **Persistence:** PostgreSQL / MS SQL Server (Database agnostic via JPQL)
+- **Session Layer:** Spring Session JDBC
+- **API Spec:** Swagger / Springfox 3.0.0
+
+### Frontend Infrastructure
+- **Core:** React 18 / Vite
+- **State Management:** React Context API
+- **Visuals:** Tailwind CSS / Framer Motion
+- **Integrations:** Axios, Leaflet (Maps), Lucide Icons
+
+---
+
+## 📂 Repository Structure
 
 ```text
 RBAC/
-├── backend/            # Spring Boot Source Code
-│   ├── src/main/java/  # Java Backend Logic
-│   └── src/resources/  # Configuration (application.properties)
-├── frontend/           # React Frontend Source Code
-│   ├── src/pages/      # Dashboard, Admin, Auth Pages
-│   └── src/components/ # Reusable UI Components
-├── database/           # SQL Scripts and Schema Definitions
-└── pom.xml             # Root Maven Configuration
+├── backend/            # Enterprise Java Backend
+│   ├── src/main/java/  # Business Logic & Security Configs
+│   └── src/resources/  # Application Environment Props
+├── frontend/           # React Frontend Application
+│   ├── src/pages/      # Dynamic routes (Admin, User, Auth)
+│   └── src/components/ # Atomic UI components
+├── database/           # Schema migration scripts
+└── pom.xml             # Maven Project Object Model
 ```
 
 ---
 
-## ⚙️ Setup & Installation
+## ⚙️ Deployment & Development
 
-### Prerequisites
-- JDK 8 or higher
-- Node.js (v18+) & Correspoding NPM
-- MS SQL Server
-
-### 1. Backend Setup
-1. Navigate to the `backend` directory.
-2. Update `src/main/resources/application.properties` with your MS SQL Server credentials.
-3. Run the application:
+### Local Setup
+1. **Database:** Ensure a SQL instance is running. The system auto-initializes schema on startup.
+2. **Backend:**
    ```bash
-   mvn clean install
+   cd backend
    mvn spring-boot:run
    ```
-4. Access API documentation at: `http://localhost:8081/swagger-ui/`
+3. **Frontend:**
+   ```bash
+   cd frontend
+   npm install && npm run dev
+   ```
 
-### 2. Frontend Setup
-1. Navigate to the `frontend` directory.
-2. Install dependencies:
-   ```bash
-   npm install
-   ```
-3. Start the development server:
-   ```bash
-   npm run dev
-   ```
-4. Open your browser to: `http://localhost:5173`
+### Production Deployment
+The project is configured for containerized deployment via the included `Dockerfile` and `render.yaml` orchestration.
+- **Backend:** Deployed on Render (Postgres internal networking).
+- **Frontend:** Optimized Vite build deployed on Vercel.
 
 ---
 
-## 🛡️ Security Implementation
-- **Password Hashing:** BCrypt password encoding for secure storage.
-- **Session Management:** Spring Session JDBC for persistent and scalable session tracking.
-- **JWT/CORS:** Properly configured CORS policies for secure frontend-backend communication.
-
-## 🗺️ Roadmap
-- [ ] Integration with External Identity Providers (OAuth2/OpenID).
-- [ ] AI-driven anomaly detection for risk scoring.
-- [ ] Mobile app companion for real-time security alerts.
+## 🗺️ Engineering Roadmap
+- [x] Adaptive Risk Evaluation Engine
+- [x] Multi-factor Authentication (OTP)
+- [x] Geo-fencing Restrictions
+- [ ] Integration with External IDPs (OAuth2)
+- [ ] AI-driven anomaly detection models
 
 ---
 
-## 📄 License
-This project is licensed under the MIT License - see the LICENSE file for details.
+## 📄 Compliance & License
+This project is architected for enterprise-scale security compliance. Distributed under the MIT License.
