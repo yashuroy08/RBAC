@@ -117,17 +117,21 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse> handleRuntimeException(RuntimeException ex) {
         String actor = getCurrentUsername();
         String trace = getStackTraceTail(ex).replace("\"", "\\\"").replace("\n", "\\n").replace("\r", "");
-        String metadata = "{\"error\": \"" + ex.getMessage().replace("\"", "\\\"") + "\", \"stackTrace\": \"" + trace + "\"}";
+        String msg = ex.getMessage() != null ? ex.getMessage() : "Internal Error";
+        String metadata = "{\"error\": \"" + msg.replace("\"", "\\\"") + "\", \"stackTrace\": \"" + trace + "\"}";
         
-        auditLogService.logEvent("SYSTEM", "RUNTIME_ERROR", "ERROR", actor, null, 
-                "Uncaught RuntimeException in system", metadata, "FAILURE");
+        try {
+            auditLogService.logEvent("SYSTEM", "RUNTIME_ERROR", "ERROR", actor, null, 
+                "System Error: " + msg, metadata, "FAILURE");
+        } catch (Exception auditEx) {
+            log.error("Audit logging failed during exception handling: {}", auditEx.getMessage());
+        }
 
-        log.error("Runtime error: {}", ex.getMessage(), ex);
+        log.error("Runtime error ({}): {}", actor, msg, ex);
         
-        // Hardmasking: Send generic message to user, detailed message stays in Audit Log
         return ResponseEntity
-                .status(HttpStatus.BAD_REQUEST)
-                .body(ApiResponse.error("A system error occurred. Our engineers have been notified. Reference: " + actor));
+                .status(HttpStatus.INTERNAL_SERVER_ERROR)
+                .body(ApiResponse.error("Server Error: " + msg));
     }
     
     /**

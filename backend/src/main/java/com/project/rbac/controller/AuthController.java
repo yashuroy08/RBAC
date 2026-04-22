@@ -153,33 +153,26 @@ public class AuthController {
                     .status(HttpStatus.UNAUTHORIZED)
                     .body(ApiResponse.error("Account is disabled. Please contact an administrator."));
         } catch (org.springframework.security.authentication.BadCredentialsException e) {
-            log.warn("Login error: Bad credentials for user: {}", loginRequest.getUsername());
+            log.warn("Login failure for user {}: Bad credentials", loginRequest.getUsername());
             auditLogService.logEvent("AUTH", "LOGIN_FAILED", "WARNING", 
-                loginRequest.getUsername(), loginRequest.getUsername(), "Failed login attempt (Bad Credentials)", 
-                null, "FAILURE");
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid username or password"));
+                loginRequest.getUsername(), loginRequest.getUsername(), "Attempt with invalid password", null, "FAILURE");
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Invalid username or password"));
+        } catch (org.springframework.security.authentication.LockedException e) {
+            log.warn("Login failure for user {}: Account locked", loginRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Account locked. Contact support."));
+        } catch (org.springframework.security.authentication.DisabledException e) {
+            log.warn("Login failure for user {}: Account disabled", loginRequest.getUsername());
+            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Account disabled. Contact support."));
         } catch (RuntimeException e) {
             if ("LOGIN_LOCATION_DENIED".equals(e.getMessage())) {
-                log.warn("Login denied due to location restriction for user: {}", loginRequest.getUsername());
-                auditLogService.logEvent("AUTH", "LOGIN_DENIED", "WARNING", 
-                    loginRequest.getUsername(), loginRequest.getUsername(), "Login denied (Location Restriction)", 
-                    null, "DENIED");
-                return ResponseEntity
-                        .status(HttpStatus.FORBIDDEN)
-                        .body(ApiResponse.error(
-                                "Access denied: You are outside the allowed login zone. Please login from the authorized location."));
+                log.warn("Login denied for user {}: Outside geofence", loginRequest.getUsername());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied: You are outside the authorized login zone."));
             }
-            log.error("Login error: {}", e.getMessage());
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid username or password"));
+            log.error("SYSTEM ERROR during login for user {}: {}", loginRequest.getUsername(), e.getMessage(), e);
+            throw e; // Bubble up to GlobalExceptionHandler for 500
         } catch (Exception e) {
-            log.error("Login error: {}", e.getMessage());
-            return ResponseEntity
-                    .status(HttpStatus.UNAUTHORIZED)
-                    .body(ApiResponse.error("Invalid username or password"));
+            log.error("UNEXPECTED ERROR during login for user {}: {}", loginRequest.getUsername(), e.getMessage(), e);
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(ApiResponse.error("System crash: " + e.getMessage()));
         }
     }
 
