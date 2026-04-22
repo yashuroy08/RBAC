@@ -157,12 +157,6 @@ public class AuthController {
             auditLogService.logEvent("AUTH", "LOGIN_FAILED", "WARNING", 
                 loginRequest.getUsername(), loginRequest.getUsername(), "Attempt with invalid password", null, "FAILURE");
             return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Invalid username or password"));
-        } catch (org.springframework.security.authentication.LockedException e) {
-            log.warn("Login failure for user {}: Account locked", loginRequest.getUsername());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Account locked. Contact support."));
-        } catch (org.springframework.security.authentication.DisabledException e) {
-            log.warn("Login failure for user {}: Account disabled", loginRequest.getUsername());
-            return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(ApiResponse.error("Account disabled. Contact support."));
         } catch (RuntimeException e) {
             if ("LOGIN_LOCATION_DENIED".equals(e.getMessage())) {
                 log.warn("Login denied for user {}: Outside geofence", loginRequest.getUsername());
