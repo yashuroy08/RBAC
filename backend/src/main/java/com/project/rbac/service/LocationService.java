@@ -2,7 +2,9 @@ package com.project.rbac.service;
 
 import com.project.rbac.dto.LocationConfigDTO;
 import com.project.rbac.entity.LocationConfig;
+import com.project.rbac.entity.User;
 import com.project.rbac.repository.LocationConfigRepository;
+import com.project.rbac.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -22,6 +24,7 @@ import java.util.stream.Collectors;
 public class LocationService {
 
     private final LocationConfigRepository locationConfigRepository;
+    private final UserRepository userRepository;
 
     // Earth's radius in kilometers
     private static final double EARTH_RADIUS_KM = 6371.0;
@@ -34,45 +37,77 @@ public class LocationService {
      * @return true if location is within allowed range, false otherwise
      */
     public boolean isLocationAllowed(Double latitude, Double longitude) {
+        return isLocationAllowed(latitude, longitude, null);
+    }
+
+    /**
+     * Validate if the given coordinates are within the allowed login zone.
+     * If userId is provided, checks the user's assigned location first.
+     * Falls back to the global (most recent enabled) config.
+     * If a user has an assigned location, checks against ALL enabled configs.
+     */
+    public boolean isLocationAllowed(Double latitude, Double longitude, Long userId) {
         if (latitude == null || longitude == null) {
             log.warn("Location validation skipped: coordinates are null (browser may not support geolocation)");
             return true;
         }
 
-        Optional<LocationConfig> configOpt = locationConfigRepository.findTopByEnabledTrueOrderByUpdatedAtDesc();
+        // 1. Check user-specific assigned location first
+        if (userId != null) {
+            Optional<User> userOpt = userRepository.findById(userId);
+            if (userOpt.isPresent() && userOpt.get().getAssignedLocation() != null) {
+                LocationConfig userConfig = userOpt.get().getAssignedLocation();
+                if (userConfig.isEnabled()) {
+                    double distance = calculateDistance(latitude, longitude,
+                            userConfig.getCenterLatitude(), userConfig.getCenterLongitude());
+                    log.info("User-specific location check: User {} at ({}, {}), Zone '{}' at ({}, {}), Distance: {} km, Radius: {} km",
+                            userId, latitude, longitude, userConfig.getLocationName(),
+                            userConfig.getCenterLatitude(), userConfig.getCenterLongitude(),
+                            String.format("%.2f", distance), userConfig.getRadiusKm());
+                    boolean allowed = distance <= userConfig.getRadiusKm();
+                    if (!allowed) {
+                        log.warn("Login denied for user {}: {} km from assigned zone '{}' (max {} km)",
+                                userId, String.format("%.2f", distance), userConfig.getLocationName(), userConfig.getRadiusKm());
+                    }
+                    return allowed;
+                }
+            }
+        }
 
-        if (!configOpt.isPresent()) {
-            // No active location config exists - allow login (feature not configured)
+        // 2. Fall back to checking against ALL enabled global configs
+        List<LocationConfig> enabledConfigs = locationConfigRepository.findByEnabledTrue();
+
+        if (enabledConfigs.isEmpty()) {
             log.info("No active location configuration found. Allowing login.");
             return true;
         }
 
-        LocationConfig config = configOpt.get();
+        // User is allowed if they are within ANY enabled zone
+        for (LocationConfig config : enabledConfigs) {
+            double distance = calculateDistance(latitude, longitude,
+                    config.getCenterLatitude(), config.getCenterLongitude());
 
-        double distance = calculateDistance(
-                latitude, longitude,
-                config.getCenterLatitude(), config.getCenterLongitude());
+            log.info("Global location check: User at ({}, {}), Zone '{}' at ({}, {}), Distance: {} km, Radius: {} km",
+                    latitude, longitude, config.getLocationName(),
+                    config.getCenterLatitude(), config.getCenterLongitude(),
+                    String.format("%.2f", distance), config.getRadiusKm());
 
-        log.info("Location check: User at ({}, {}), Center at ({}, {}), Distance: {} km, Allowed radius: {} km",
-                latitude, longitude,
-                config.getCenterLatitude(), config.getCenterLongitude(),
-                distance, config.getRadiusKm());
-
-        boolean allowed = distance <= config.getRadiusKm();
-
-        if (!allowed) {
-            log.warn("Login location denied. Distance {} km exceeds allowed radius {} km", distance,
-                    config.getRadiusKm());
+            if (distance <= config.getRadiusKm()) {
+                log.info("Login allowed: user is within zone '{}'", config.getLocationName());
+                return true;
+            }
         }
 
-        return allowed;
+        log.warn("Login location denied: user at ({}, {}) is outside all {} enabled zone(s)",
+                latitude, longitude, enabledConfigs.size());
+        return false;
     }
 
     /**
      * Check if location restriction is currently enabled
      */
     public boolean isLocationRestrictionEnabled() {
-        return locationConfigRepository.findTopByEnabledTrueOrderByUpdatedAtDesc().isPresent();
+        return !locationConfigRepository.findByEnabledTrue().isEmpty();
     }
 
     /**

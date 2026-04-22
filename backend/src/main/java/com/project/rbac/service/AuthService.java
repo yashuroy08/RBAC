@@ -68,7 +68,8 @@ public class AuthService {
             if (locationService.isLocationRestrictionEnabled()) {
                 boolean locationAllowed = locationService.isLocationAllowed(
                         loginRequest.getLatitude(),
-                        loginRequest.getLongitude());
+                        loginRequest.getLongitude(),
+                        userPrincipal.getId());
 
                 if (!locationAllowed) {
                     log.warn("Login denied for user {} - outside allowed location zone. Lat: {}, Lng: {}",

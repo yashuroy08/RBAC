@@ -12,9 +12,10 @@ import java.util.List;
 @AllArgsConstructor
 @Builder
 public class DashboardStatsResponse {
-    private List<DashboardChartDataDTO> riskTimeline;
-    private List<DashboardChartDataDTO> sessionActivity;
-    private Integer totalActiveSessions;
+    private List<DashboardChartDataDTO> riskTimelinePoints;
+    private List<DashboardChartDataDTO> sessionActivityPoints;
+    private Integer activeSessions;
     private Long totalRiskEvents;
     private Double averageRiskScore;
+    private Integer mfaRequiredUsers;
 }

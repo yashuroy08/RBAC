@@ -85,14 +85,18 @@ const AdminPanel = () => {
         }
     }, [auditSearchQuery, activeTab]);
 
-    // Update selectedUser if users list changes
+    // Update selectedUser data when users list is refreshed (after role/location changes)
     useEffect(() => {
-        if (selectedUser) {
+        if (selectedUser && users.length > 0) {
             const updated = users.find(u => u.id === selectedUser.id);
-            if (updated) setSelectedUser(updated);
-            fetchUserSessions(selectedUser.id);
+            if (updated) {
+                // Only update if data actually changed to prevent unnecessary re-renders
+                if (JSON.stringify(updated) !== JSON.stringify(selectedUser)) {
+                    setSelectedUser(updated);
+                }
+            }
         }
-    }, [users, selectedUser?.id]);
+    }, [users]);
 
     const fetchUsers = async () => {
         try {
@@ -348,7 +352,7 @@ const AdminPanel = () => {
                         </h1>
                         <p className="text-xs text-text-muted mt-1">Manage users, policies, and security posture</p>
                     </div>
-                    <button onClick={() => { fetchUsers(); fetchAllRisk(); fetchLocationConfigs(); }}
+                    <button onClick={() => { fetchUsers(); fetchAllRisk(); fetchLocationConfigs(); fetchDashboardStats(); }}
                         className="btn btn-secondary text-xs gap-1.5 border border-border-subtle bg-bg-card hover:bg-bg-elevated transition-all">
                         <RefreshCw size={12} className={loading ? 'animate-spin' : ''} /> Refresh
                     </button>

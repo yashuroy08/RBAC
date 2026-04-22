@@ -1,10 +1,8 @@
 import { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { motion, AnimatePresence } from 'framer-motion';
-import axios from 'axios';
+import { authAPI } from '../services/api';
 import { Lock, Mail, Eye, EyeOff, RefreshCcw, AlertCircle, CheckCircle, Check, X } from 'lucide-react';
-
-const API_BASE_URL = '/api/auth';
 
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
 
@@ -77,7 +75,7 @@ const ResetPassword = () => {
         setFieldErrors({});
 
         try {
-            const response = await axios.post(`${API_BASE_URL}/reset-password`, formData);
+            const response = await authAPI.resetPassword(formData);
             if (response.data.success) {
                 setSuccess(response.data.message);
                 setTimeout(() => navigate('/login'), 3000);

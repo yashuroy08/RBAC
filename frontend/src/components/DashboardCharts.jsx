@@ -54,65 +54,24 @@ export const RiskTimeline = ({ riskEvents = [], riskHistory = [], currentScore =
     const range = propRange || localRange;
 
     const chartData = useMemo(() => {
-        const now = Date.now();
-        let dataPoints = [];
-        let count = 0;
-        let interval = 0;
-        let labelFn = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-
-        switch (range) {
-            case 'hours': count = 12; interval = 5 * 60000; break;
-            case 'days': count = 7; interval = 24 * 60 * 60000; labelFn = (d) => d.toLocaleDateString([], { weekday: 'short' }); break;
-            case 'weeks': count = 4; interval = 7 * 24 * 60 * 60000; labelFn = (d) => `Wk ${Math.ceil(d.getDate() / 7)} Feb`; break; // Example: Feb/Mar labels
-            case 'months': count = 6; interval = 30 * 24 * 60 * 60000; labelFn = (d) => d.toLocaleDateString([], { month: 'short' }); break;
-            default: count = 12; interval = 5 * 60000;
+        // Use real backend data when available
+        if (riskHistory && riskHistory.length > 0) {
+            return riskHistory;
         }
 
-        // 1. Use real-time riskHistory if available and range is hours
-        if (range === 'hours' && riskHistory.length > 5) {
-            return riskHistory.slice(-count);
-        }
-
-        // 2. Fall back to riskEvents if available
-        if (range === 'hours' && riskEvents.length > 0) {
+        // If riskEvents are available, map them
+        if (riskEvents && riskEvents.length > 0) {
             const sorted = [...riskEvents].sort((a, b) => new Date(a.eventTime) - new Date(b.eventTime));
-            dataPoints = sorted.map(event => ({
+            return sorted.map(event => ({
                 time: new Date(event.eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
                 score: Math.round(event.riskScore || 0),
                 threshold: 70,
             }));
-            
-            // Fill if too few events
-            while (dataPoints.length < count) {
-                const earliest = dataPoints.length > 0 ? new Date(riskEvents[0].eventTime).getTime() : now;
-                dataPoints.unshift({
-                    time: new Date(earliest - (count - dataPoints.length) * interval).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
-                    score: Math.max(0, currentScore + Math.floor(Math.random() * 20 - 10)),
-                    threshold: 70
-                });
-            }
-        } else {
-            // 3. Generate synthetic trend for the ranges
-            dataPoints = Array.from({ length: count }, (_, i) => {
-                const timestamp = now - (count - 1 - i) * interval;
-                const date = new Date(timestamp);
-                
-                // Better week/month labels
-                let label = labelFn(date);
-                if (range === 'weeks') {
-                    const month = date.toLocaleDateString([], { month: 'short' });
-                    label = `W${Math.ceil(date.getDate() / 7)} ${month}`;
-                }
-
-                return {
-                    time: label,
-                    score: Math.max(10, Math.min(95, currentScore + (i * 2) + Math.floor(Math.random() * 30 - 15))),
-                    threshold: 70,
-                };
-            });
         }
-        return dataPoints.slice(-count);
-    }, [riskEvents, riskHistory, currentScore, range]);
+
+        // No data available — return empty array (shows empty state)
+        return [];
+    }, [riskEvents, riskHistory, range]);
 
     const trend = useMemo(() => {
         if (chartData.length < 2) return { direction: 'flat', delta: 0 };
@@ -148,9 +107,10 @@ export const RiskTimeline = ({ riskEvents = [], riskHistory = [], currentScore =
             
             <div className="flex items-center gap-1.5 text-[10px] font-bold uppercase tracking-wider mb-2" style={{ color: trendColor }}>
                 <TrendIcon size={12} />
-                {trend.direction === 'flat' ? 'System Stable' : `${trend.delta}pts ${trend.direction} over ${range}`}
+                {trend.direction === 'flat' ? 'System Stable' : `${trend.delta}pts ${trend.direction}`}
             </div>
 
+            {chartData.length > 0 ? (
             <div style={{ width: '100%', height: 180, minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%" debounce={1}>
                     <AreaChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }}>
@@ -178,6 +138,13 @@ export const RiskTimeline = ({ riskEvents = [], riskHistory = [], currentScore =
                     </AreaChart>
                 </ResponsiveContainer>
             </div>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-text-muted">
+                    <Shield size={28} className="opacity-20 mb-2" />
+                    <p className="text-xs">No risk events recorded yet</p>
+                    <p className="text-[10px] opacity-60">Data will appear as the system evaluates login activity</p>
+                </div>
+            )}
         </div>
     );
 };
@@ -190,53 +157,13 @@ export const SessionActivityChart = ({ sessions = [], timeRange: propRange }) =>
     const range = propRange || localRange;
 
     const chartData = useMemo(() => {
-        const now = Date.now();
-        let count = 12;
-        let labelFn;
-        let syntheticBase;
-        let interval;
-
-        switch (range) {
-            case 'hours': 
-                count = 12; 
-                interval = 3600000;
-                labelFn = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                syntheticBase = Math.max(2, sessions.length);
-                break;
-            case 'days': 
-                count = 7; 
-                interval = 86400000;
-                labelFn = (d) => d.toLocaleDateString([], { weekday: 'short' }); 
-                syntheticBase = 12;
-                break;
-            case 'weeks': 
-                count = 4; 
-                interval = 604800000;
-                labelFn = (d) => `W${Math.ceil(d.getDate() / 7)} ${d.toLocaleDateString([], { month: 'short' })}`;
-                syntheticBase = 45;
-                break;
-            case 'months': 
-                count = 6; 
-                interval = 2592000000;
-                labelFn = (d) => d.toLocaleDateString([], { month: 'short' });
-                syntheticBase = 180;
-                break;
-            default: 
-                count = 12; 
-                interval = 3600000;
-                labelFn = (d) => d.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
-                syntheticBase = 5;
+        // Use real backend data when available
+        if (sessions && sessions.length > 0) {
+            return sessions;
         }
 
-        return Array.from({ length: count }, (_, i) => {
-            const timestamp = now - (count - 1 - i) * interval;
-            const seed = Math.sin(i + (range === 'months' ? 10 : 1)) * 5; // Add some variation
-            return {
-                label: labelFn(new Date(timestamp)),
-                active: Math.max(1, Math.floor(syntheticBase + seed + Math.random() * (syntheticBase * 0.4))),
-                closed: Math.max(0, Math.floor((syntheticBase * 0.3) + seed + Math.random() * (syntheticBase * 0.2))),
-            };
-        });
+        // No data — return empty array (shows empty state)
+        return [];
     }, [sessions, range]);
 
     return (
@@ -259,6 +186,8 @@ export const SessionActivityChart = ({ sessions = [], timeRange: propRange }) =>
                     />
                 )}
             </div>
+            {chartData.length > 0 ? (
+            <>
             <div style={{ width: '100%', height: 160, minWidth: 0 }}>
                 <ResponsiveContainer width="100%" height="100%" debounce={1}>
                     <BarChart data={chartData} margin={{ top: 5, right: 5, left: -20, bottom: 0 }} barGap={2}>
@@ -275,6 +204,14 @@ export const SessionActivityChart = ({ sessions = [], timeRange: propRange }) =>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: '#378ADD' }} /> Active</span>
                 <span className="flex items-center gap-1.5"><span className="w-2.5 h-2.5 rounded-sm" style={{ background: 'rgba(136,135,128,0.4)' }} /> Closed</span>
             </div>
+            </>
+            ) : (
+                <div className="flex flex-col items-center justify-center py-10 text-text-muted">
+                    <Target size={28} className="opacity-20 mb-2" />
+                    <p className="text-xs">No session activity recorded yet</p>
+                    <p className="text-[10px] opacity-60">Data will populate as users log in</p>
+                </div>
+            )}
         </div>
     );
 };

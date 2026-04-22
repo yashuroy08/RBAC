@@ -89,7 +89,7 @@ public class DashboardService {
             
             // If no events, and it's the latest point, maybe use current global risk? 
             // For now, if no events, we'll keep it at a baseline or 0
-            riskTimeline.add(new DashboardChartDataDTO(label, avgRisk > 0 ? avgRisk : 10.0 + Math.random() * 5)); // Base line if no real events yet
+            riskTimeline.add(new DashboardChartDataDTO(label, avgRisk)); // Real data — 0.0 when no events
 
             // Session Activity
             long activeInSlot = sessions.stream()
@@ -102,13 +102,21 @@ public class DashboardService {
         long totalRiskEvents = riskEventRepository.count();
         int totalActiveSessions = (int) sessions.stream().filter(UserSession::isActive).count();
         double avgRisk = riskEvents.stream().mapToDouble(RiskEvent::getRiskScore).average().orElse(0.0);
+        
+        // Count users who triggered MFA (risk score >= 70) from recent risk events
+        int mfaRequired = (int) riskEvents.stream()
+                .filter(e -> e.getRiskScore() >= 70)
+                .map(RiskEvent::getUserId)
+                .distinct()
+                .count();
 
         return DashboardStatsResponse.builder()
-                .riskTimeline(riskTimeline)
-                .sessionActivity(sessionActivity)
-                .totalActiveSessions(totalActiveSessions)
+                .riskTimelinePoints(riskTimeline)
+                .sessionActivityPoints(sessionActivity)
+                .activeSessions(totalActiveSessions)
                 .totalRiskEvents(totalRiskEvents)
                 .averageRiskScore(avgRisk)
+                .mfaRequiredUsers(mfaRequired)
                 .build();
     }
 }
