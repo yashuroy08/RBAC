@@ -80,9 +80,11 @@
   body {
     @apply bg-bg-deep text-text-main antialiased min-h-screen overflow-x-hidden;
     font-family: var(--font-main);
-    background-image:
-      radial-gradient(ellipse at 10% 0%, rgba(24, 95, 165, 0.08) 0%, transparent 50%),
-      radial-gradient(ellipse at 90% 100%, rgba(83, 74, 183, 0.05) 0%, transparent 50%);
+    /* Removed soft radial gradients - utilizing structural grit */
+    background-image: 
+      radial-gradient(var(--color-bg-elevated) 1px, transparent 1px);
+    background-size: 24px 24px;
+    background-position: 0 0;
   }
 
   button,
@@ -117,34 +119,35 @@
 }
 
 @layer components {
-  /* ── Glass Card ── */
+  /* ── Structural Card ── */
   .glass-card {
-    background: var(--color-bg-card);
+    background: var(--color-bg-base);
     border: 1px solid var(--color-border-subtle);
-    border-radius: 12px;
-    box-shadow: var(--shadow-card);
-    backdrop-filter: blur(12px);
-    -webkit-backdrop-filter: blur(12px);
-    transition: all 0.25s cubic-bezier(0.4, 0, 0.2, 1);
+    border-radius: 4px; /* Sharper */
+    box-shadow: none; /* Removed heavy shadow */
+    transition: all 0.2s ease-out;
   }
   .glass-card:hover {
-    border-color: var(--color-border-glow);
+    border-color: var(--color-command);
   }
 
   /* ── Buttons ── */
   .btn {
-    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 font-semibold text-sm transition-all duration-200 border-none select-none;
-    border-radius: 8px;
+    @apply inline-flex items-center justify-center gap-2 px-5 py-2.5 font-mono text-xs uppercase tracking-wider transition-all duration-200 select-none;
+    border-radius: 2px; /* Harsh/rigid */
     cursor: pointer;
+    border: 1px solid transparent;
   }
 
   .btn-primary {
-    @apply text-white shadow-md;
-    background: linear-gradient(135deg, var(--color-command) 0%, var(--color-signal) 100%);
+    @apply text-white;
+    background: var(--color-command);
+    border-color: var(--color-signal);
   }
   .btn-primary:hover {
-    box-shadow: var(--shadow-glow);
+    background: var(--color-signal);
     transform: translateY(-1px);
+    box-shadow: 4px 4px 0px 0px rgba(55, 138, 221, 0.2);
   }
 
   .btn-secondary {
@@ -169,23 +172,23 @@
 
   /* ── Input Fields ── */
   .input-label {
-    @apply block mb-1.5 text-xs font-semibold uppercase tracking-wider;
+    @apply block mb-1.5 text-xs font-mono uppercase tracking-wider;
     color: var(--color-text-muted);
-    letter-spacing: 0.06em;
+    letter-spacing: 0.08em;
   }
 
   .input-field {
-    @apply w-full py-2.5 px-4 text-sm transition-all duration-200;
-    background: var(--color-bg-elevated);
+    @apply w-full py-3 px-4 text-sm font-mono transition-none;
+    background: var(--color-bg-deep);
     border: 1px solid var(--color-border-subtle);
-    border-radius: 8px;
+    border-radius: 2px;
     color: var(--color-light-text);
   }
   .input-field:focus {
     outline: none;
     border-color: var(--color-signal);
-    box-shadow: 0 0 0 3px var(--color-signal-glow);
-    background: var(--color-midnight);
+    background: var(--color-abyss);
+    box-shadow: 2px 2px 0px 0px rgba(55, 138, 221, 0.2);
   }
   .input-field::placeholder {
     color: var(--color-dark-text-muted);
@@ -197,9 +200,9 @@
 
   /* ── Badges (traffic-light system) ── */
   .badge {
-    @apply px-2.5 py-0.5 text-[11px] font-bold tracking-wide uppercase inline-flex items-center;
-    border-radius: 4px;
-    letter-spacing: 0.04em;
+    @apply px-2.5 py-1 text-[10px] font-mono tracking-widest uppercase inline-flex items-center;
+    border-radius: 2px;
+    border: 1px solid transparent;
   }
   .badge-success {
     background: var(--color-safe-bg);

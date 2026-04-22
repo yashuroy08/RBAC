@@ -1,8 +1,8 @@
-import { useState, useMemo } from 'react';
+import React, { useState, useMemo } from 'react';
 import { useNavigate, Link } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { motion, AnimatePresence } from 'framer-motion';
-import { User, Lock, Mail, Eye, EyeOff, UserPlus, ArrowRight, AlertCircle, Check, X } from 'lucide-react';
+import { User, Lock, Mail, Eye, EyeOff, UserPlus, AlertCircle, TerminalSquare } from 'lucide-react';
 
 /* ── Validation Constants (mirroring backend) ── */
 const EMAIL_REGEX = /^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$/;
@@ -13,22 +13,22 @@ const getPasswordStrength = (password) => {
     if (!password) return { score: 0, label: '', color: '', checks: [] };
 
     const checks = [
-        { label: 'At least 8 characters', met: password.length >= 8 },
-        { label: 'Uppercase letter (A-Z)', met: /[A-Z]/.test(password) },
-        { label: 'Lowercase letter (a-z)', met: /[a-z]/.test(password) },
-        { label: 'Number (0-9)', met: /[0-9]/.test(password) },
-        { label: 'Special character (!@#$...)', met: /[^A-Za-z0-9]/.test(password) },
+        { label: 'Length >= 8', met: password.length >= 8 },
+        { label: 'Uppercase', met: /[A-Z]/.test(password) },
+        { label: 'Lowercase', met: /[a-z]/.test(password) },
+        { label: 'Number', met: /[0-9]/.test(password) },
+        { label: 'Special char', met: /[^A-Za-z0-9]/.test(password) },
     ];
 
     const score = checks.filter(c => c.met).length;
 
     const levels = [
-        { label: '', color: '' },
-        { label: 'Very Weak', color: '#E24B4A' },
-        { label: 'Weak', color: '#BA7517' },
-        { label: 'Fair', color: '#BA7517' },
-        { label: 'Strong', color: '#639922' },
-        { label: 'Very Strong', color: '#3B6D11' },
+        { label: 'POOR', color: 'var(--color-text-muted)' },
+        { label: 'WEAK', color: 'var(--color-crit-solid)' },
+        { label: 'FAIR', color: 'var(--color-warn)' },
+        { label: 'GOOD', color: 'var(--color-command)' },
+        { label: 'STRONG', color: 'var(--color-safe)' },
+        { label: 'VERY STRONG', color: 'var(--color-safe)' },
     ];
 
     return { score, ...levels[score], checks };
@@ -37,9 +37,9 @@ const getPasswordStrength = (password) => {
 /* ── Username Validation ── */
 const getUsernameError = (username) => {
     if (!username) return '';
-    if (username.length < 3) return 'Must be at least 3 characters';
+    if (username.length < 3) return 'Must be 3+ characters';
     if (!/^[a-zA-Z]/.test(username)) return 'Must start with a letter';
-    if (!USERNAME_REGEX.test(username)) return 'Only letters, numbers, dots, underscores, and hyphens are allowed';
+    if (!USERNAME_REGEX.test(username)) return 'Invalid characters used';
     return '';
 };
 
@@ -63,7 +63,6 @@ const Register = () => {
         setFormData({ ...formData, [name]: value });
         setError('');
 
-        // Real-time field validation
         const newFieldErrors = { ...fieldErrors };
         if (name === 'username') {
             const usernameErr = getUsernameError(value);
@@ -71,7 +70,7 @@ const Register = () => {
             else delete newFieldErrors.username;
         }
         if (name === 'email') {
-            if (value && !EMAIL_REGEX.test(value)) newFieldErrors.email = 'Please enter a valid email address';
+            if (value && !EMAIL_REGEX.test(value)) newFieldErrors.email = 'Invalid email format';
             else delete newFieldErrors.email;
         }
         setFieldErrors(newFieldErrors);
@@ -80,16 +79,15 @@ const Register = () => {
     const handleSubmit = async (e) => {
         e.preventDefault();
 
-        // Final validation gate
         const errors = {};
         const usernameErr = getUsernameError(formData.username);
         if (usernameErr) errors.username = usernameErr;
-        if (!EMAIL_REGEX.test(formData.email)) errors.email = 'Please enter a valid email address';
-        if (passwordStrength.score < 4) errors.password = 'Password must meet all strength requirements below';
+        if (!EMAIL_REGEX.test(formData.email)) errors.email = 'Invalid email address';
+        if (passwordStrength.score < 4) errors.password = 'Password is not strong enough';
 
         if (Object.keys(errors).length > 0) {
             setFieldErrors(errors);
-            setError('Please fix the highlighted fields before submitting.');
+            setError('Please fix the highlighted errors before submitting.');
             return;
         }
 
@@ -100,14 +98,14 @@ const Register = () => {
             if (response && response.success) {
                 navigate('/login');
             } else {
-                setError(response?.message || 'Registration failed');
+                setError(response?.message || 'Registration failed. Please try again.');
             }
         } catch (err) {
-            const errorMsg = err.response?.data?.message || 'Registration failed';
+            const errorMsg = err.response?.data?.message || 'Registration failed.';
             if (errorMsg.includes('Username already exists')) {
-                setError('This username is already taken. Please choose another.');
+                setError('Username is already taken.');
             } else if (errorMsg.includes('Email already exists')) {
-                setError('This email is already registered. Try logging in.');
+                setError('Email is already registered.');
             } else {
                 setError(errorMsg);
             }
@@ -117,187 +115,255 @@ const Register = () => {
     };
 
     return (
-        <div className="min-h-screen flex items-center justify-center p-4 relative"
-            style={{ background: 'var(--color-bg-deep)' }}>
-            {/* Subtle ambient */}
-            <div className="absolute top-0 left-0 w-full h-full pointer-events-none -z-10 overflow-hidden">
-                <div className="absolute top-1/4 right-1/3 w-[500px] h-[500px] rounded-full blur-[140px]"
-                    style={{ background: 'rgba(83, 74, 183, 0.08)' }} />
-            </div>
-
-            <motion.div
-                initial={{ opacity: 0, scale: 0.98 }}
-                animate={{ opacity: 1, scale: 1 }}
-                transition={{ duration: 0.35 }}
-                className="w-full max-w-sm relative z-10 my-8"
-            >
-                <div className="glass-card p-8">
-                    <div className="text-center mb-8">
-                        <div className="w-12 h-12 mx-auto rounded-xl flex items-center justify-center mb-5"
-                            style={{
-                                background: 'linear-gradient(135deg, var(--color-verified) 0%, var(--color-pending-text) 100%)',
-                                boxShadow: '0 0 24px rgba(83, 74, 183, 0.15)',
-                            }}>
-                            <UserPlus size={22} className="text-white" />
+        <div className="min-h-screen bg-[var(--color-bg-deep)] text-[var(--color-text-main)] flex">
+            
+            {/* Left Side - Brand & Branding/Log display */}
+            <div className="hidden lg:flex lg:w-1/2 border-r border-[var(--color-border-subtle)] bg-[var(--color-bg-base)] flex-col relative overflow-hidden">
+                <div className="absolute inset-0 z-0" style={{ backgroundImage: 'linear-gradient(to right, var(--color-border-subtle) 1px, transparent 1px), linear-gradient(to bottom, var(--color-border-subtle) 1px, transparent 1px)', backgroundSize: '40px 40px' }} />
+                
+                <div className="flex-1 p-12 flex flex-col justify-between relative z-10">
+                    <div>
+                        <div className="flex items-center gap-3 mb-16">
+                            <div className="w-8 h-8 rounded-sm flex items-center justify-center bg-[var(--color-command)] text-white">
+                                <TerminalSquare size={18} strokeWidth={2} />
+                            </div>
+                            <span className="font-mono text-sm font-bold uppercase tracking-[0.1em] text-[var(--color-canvas)]">
+                                Register
+                            </span>
                         </div>
-                        <h1 className="text-xl font-bold text-canvas tracking-tight mb-1">Create Account</h1>
-                        <p className="text-xs text-text-muted font-medium uppercase tracking-widest">Join the Secure RBAC System</p>
+                        
+                        <h1 className="text-4xl font-bold tracking-tight text-[var(--color-canvas)] leading-[1.1] mb-6">
+                            Create an Account.<br />
+                            <span className="font-mono font-light text-[var(--color-signal)] text-2xl tracking-[0.1em] block mt-4">
+                                Get Started Today
+                            </span>
+                        </h1>
+                        <p className="font-mono text-sm text-[var(--color-text-muted)] max-w-md leading-relaxed">
+                            Join our platform to create and manage your account easily.
+                        </p>
                     </div>
 
-                    <form onSubmit={handleSubmit} className="flex flex-col gap-4">
-                        <AnimatePresence>
-                            {error && (
-                                <motion.div
-                                    initial={{ height: 0, opacity: 0 }}
-                                    animate={{ height: 'auto', opacity: 1 }}
-                                    exit={{ height: 0, opacity: 0 }}
-                                    className="overflow-hidden"
-                                >
-                                    <div className="p-3 rounded-lg flex items-start gap-2.5 text-xs my-1"
-                                        style={{ background: 'var(--color-crit-bg)', color: 'var(--color-crit-text)' }}>
-                                        <AlertCircle size={14} className="mt-0.5 shrink-0" />
-                                        <span className="font-semibold">{error}</span>
-                                    </div>
-                                </motion.div>
-                            )}
-                        </AnimatePresence>
+                    <div className="font-mono text-[10px] text-[var(--color-text-muted)] p-4 border border-[var(--color-border-subtle)] bg-[var(--color-bg-deep)] mt-12 overflow-hidden relative">
+                        <div className="absolute top-0 left-0 w-1 h-full bg-[var(--color-command)]"></div>
+                        <div className="flex flex-col gap-2">
+                            <div className="flex justify-between"><span>Status:</span><span className="text-[var(--color-safe)]">Online</span></div>
+                            <div className="flex justify-between"><span>Connection:</span><span className="text-[var(--color-safe)]">Secured</span></div>
+                        </div>
+                    </div>
+                </div>
+            </div>
 
-                        {/* Email Field */}
-                        <div>
-                            <label htmlFor="email" className="input-label">Email Address</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
-                                    <Mail size={16} />
-                                </span>
-                                <input
-                                    type="email" id="email" name="email"
-                                    placeholder="john@example.com"
-                                    value={formData.email} onChange={handleChange} required
-                                    className={`input-field input-field-with-icon ${fieldErrors.email ? 'ring-1 ring-crit-solid' : ''}`}
-                                />
+            {/* Right Side - Form */}
+            <div className="w-full lg:w-1/2 flex items-center justify-center p-8 bg-[var(--color-bg-deep)] relative">
+                <div className="absolute top-6 left-6 lg:hidden flex items-center gap-2">
+                    <TerminalSquare size={16} className="text-[var(--color-command)]" />
+                    <span className="font-mono text-xs font-bold tracking-[0.1em] text-[var(--color-canvas)]">Register</span>
+                </div>
+
+                <div className="w-full max-w-md relative">
+                    <motion.div 
+                        initial={{ opacity: 0, x: -20 }}
+                        animate={{ opacity: 1, x: 0 }}
+                        transition={{ duration: 0.4, ease: 'easeOut' }}
+                        className="bg-[var(--color-bg-base)] border border-[var(--color-border-subtle)]"
+                    >
+                        {/* Form Header */}
+                        <div className="border-b border-[var(--color-border-subtle)] px-6 py-4 flex items-center justify-between bg-[var(--color-bg-elevated)]">
+                            <h2 className="font-mono text-xs font-bold tracking-[0.1em] text-[var(--color-canvas)] flex items-center gap-2">
+                                <UserPlus size={14} className="text-[var(--color-command)]" />
+                                CREATE ACCOUNT
+                            </h2>
+                            <div className="flex gap-1.5">
+                                <div className="w-2 h-2 bg-[var(--color-border-subtle)]" />
+                                <div className="w-2 h-2 bg-[var(--color-border-subtle)]" />
                             </div>
-                            {fieldErrors.email && (
-                                <p className="text-[10px] mt-1.5 font-semibold flex items-center gap-1" style={{ color: 'var(--color-crit-solid)' }}>
-                                    <AlertCircle size={10} /> {fieldErrors.email}
-                                </p>
-                            )}
                         </div>
 
-                        {/* Username Field */}
-                        <div>
-                            <label htmlFor="username" className="input-label">Username</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
-                                    <User size={16} />
-                                </span>
-                                <input
-                                    type="text" id="username" name="username"
-                                    placeholder="your_username"
-                                    value={formData.username} onChange={handleChange} required
-                                    className={`input-field input-field-with-icon ${fieldErrors.username ? 'ring-1 ring-crit-solid' : ''}`}
-                                />
-                            </div>
-                            {fieldErrors.username && (
-                                <p className="text-[10px] mt-1.5 font-semibold flex items-center gap-1" style={{ color: 'var(--color-crit-solid)' }}>
-                                    <AlertCircle size={10} /> {fieldErrors.username}
-                                </p>
-                            )}
-                            {!fieldErrors.username && formData.username && (
-                                <p className="text-[10px] mt-1.5 font-medium text-text-muted">
-                                    Letters, numbers, dots, underscores, hyphens. Must start with a letter.
-                                </p>
-                            )}
-                        </div>
-
-                        {/* Password Field */}
-                        <div>
-                            <label htmlFor="password" className="input-label">Password</label>
-                            <div className="relative">
-                                <span className="absolute left-3 top-1/2 -translate-y-1/2 text-text-muted pointer-events-none">
-                                    <Lock size={16} />
-                                </span>
-                                <input
-                                    type={showPassword ? 'text' : 'password'}
-                                    id="password" name="password"
-                                    placeholder="••••••••"
-                                    value={formData.password} onChange={handleChange} required
-                                    className="input-field input-field-with-icon pr-10"
-                                />
-                                <button type="button"
-                                    className="absolute right-3 top-1/2 -translate-y-1/2 text-text-muted hover:text-canvas transition-colors"
-                                    onClick={() => setShowPassword(!showPassword)}
-                                    tabIndex={-1}
-                                    aria-label={showPassword ? 'Hide password' : 'Show password'}>
-                                    {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
-                                </button>
-                            </div>
-
-                            {/* Password Strength */}
+                        {/* Form Body */}
+                        <div className="p-6 sm:p-8">
                             <AnimatePresence>
-                                {formData.password && (
+                                {error && (
                                     <motion.div
-                                        initial={{ opacity: 0, height: 0 }}
-                                        animate={{ opacity: 1, height: 'auto' }}
-                                        exit={{ opacity: 0, height: 0 }}
-                                        className="overflow-hidden mt-3"
+                                        initial={{ height: 0, opacity: 0 }}
+                                        animate={{ height: 'auto', opacity: 1 }}
+                                        exit={{ height: 0, opacity: 0 }}
+                                        className="overflow-hidden mb-6"
                                     >
-                                        <div className="rounded-lg p-3 border"
-                                            style={{ background: 'var(--color-bg-elevated)', borderColor: 'var(--color-border-subtle)' }}>
-                                            {/* Strength Bar */}
-                                            <div className="flex items-center gap-2.5 mb-2.5">
-                                                <div className="flex-1 flex gap-0.5 h-1 rounded-full overflow-hidden">
-                                                    {[1, 2, 3, 4, 5].map(i => (
-                                                        <div key={i}
-                                                            className="flex-1 transition-all duration-300"
-                                                            style={{
-                                                                backgroundColor: i <= passwordStrength.score
-                                                                    ? passwordStrength.color
-                                                                    : 'var(--color-midnight)',
-                                                                borderRadius: '2px',
-                                                            }}
-                                                        />
-                                                    ))}
-                                                </div>
-                                                <span className="text-[10px] font-bold uppercase tracking-wider w-20 text-right"
-                                                    style={{ color: passwordStrength.color }}>
-                                                    {passwordStrength.label}
-                                                </span>
-                                            </div>
-
-                                            {/* Requirement Checks */}
-                                            <div className="space-y-1.5">
-                                                {passwordStrength.checks.map((check, i) => (
-                                                    <div key={i}
-                                                        className="flex items-center gap-1.5 text-[11px] transition-colors duration-300"
-                                                        style={{ color: check.met ? 'var(--color-safe)' : 'var(--color-text-muted)' }}>
-                                                        {check.met ? <Check size={12} /> : <X size={12} />}
-                                                        <span>{check.label}</span>
-                                                    </div>
-                                                ))}
-                                            </div>
+                                        <div className="p-3 flex items-start gap-2.5 text-xs font-mono"
+                                            style={{
+                                                background: 'var(--color-crit-bg)',
+                                                color: 'var(--color-crit-text)',
+                                                border: '1px solid var(--color-crit-solid)'
+                                            }}>
+                                            <AlertCircle size={14} className="mt-0.5 shrink-0" />
+                                            <span className="font-bold">{error}</span>
                                         </div>
                                     </motion.div>
                                 )}
                             </AnimatePresence>
+
+                            <form onSubmit={handleSubmit} className="space-y-6">
+                                
+                                {/* Email */}
+                                <div>
+                                    <label className="input-label" htmlFor="email">
+                                        Email
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--color-text-muted)]">
+                                            <Mail size={16} />
+                                        </div>
+                                        <input
+                                            id="email"
+                                            name="email"
+                                            type="email"
+                                            value={formData.email}
+                                            onChange={handleChange}
+                                            className={`input-field pl-10 bg-[var(--color-bg-deep)] ${fieldErrors.email ? 'border-[var(--color-crit-solid)]' : ''}`}
+                                            placeholder="name@example.com"
+                                            required
+                                        />
+                                    </div>
+                                    {fieldErrors.email && (
+                                        <p className="text-[10px] mt-1.5 font-mono text-[var(--color-crit-solid)] uppercase tracking-wider">
+                                            {fieldErrors.email}
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Username */}
+                                <div>
+                                    <label className="input-label" htmlFor="username">
+                                        Username
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--color-text-muted)]">
+                                            <User size={16} />
+                                        </div>
+                                        <input
+                                            id="username"
+                                            name="username"
+                                            type="text"
+                                            value={formData.username}
+                                            onChange={handleChange}
+                                            className={`input-field pl-10 bg-[var(--color-bg-deep)] ${fieldErrors.username ? 'border-[var(--color-crit-solid)]' : ''}`}
+                                            placeholder="Username"
+                                            required
+                                        />
+                                    </div>
+                                    {fieldErrors.username ? (
+                                        <p className="text-[10px] mt-1.5 font-mono text-[var(--color-crit-solid)] uppercase tracking-wider">
+                                            {fieldErrors.username}
+                                        </p>
+                                    ) : (
+                                        <p className="text-[10px] mt-1.5 font-mono text-[var(--color-text-muted)]">
+                                            Letters, numbers, and underscores. Starts with a letter.
+                                        </p>
+                                    )}
+                                </div>
+
+                                {/* Password */}
+                                <div>
+                                    <label className="input-label" htmlFor="password">
+                                        Password
+                                    </label>
+                                    <div className="relative">
+                                        <div className="absolute inset-y-0 left-0 pl-3.5 flex items-center pointer-events-none text-[var(--color-text-muted)]">
+                                            <Lock size={16} />
+                                        </div>
+                                        <input
+                                            id="password"
+                                            name="password"
+                                            type={showPassword ? 'text' : 'password'}
+                                            value={formData.password}
+                                            onChange={handleChange}
+                                            className={`input-field pl-10 pr-10 bg-[var(--color-bg-deep)] ${fieldErrors.password ? 'border-[var(--color-crit-solid)]' : ''}`}
+                                            placeholder="••••••••"
+                                            required
+                                        />
+                                        <button
+                                            type="button"
+                                            className="absolute inset-y-0 right-0 pr-3.5 flex items-center text-[var(--color-text-muted)] hover:text-[var(--color-signal)] transition-colors"
+                                            onClick={() => setShowPassword(!showPassword)}
+                                            tabIndex={-1}
+                                        >
+                                            {showPassword ? <Eye size={16} /> : <EyeOff size={16} />}
+                                        </button>
+                                    </div>
+
+                                    {/* Password Strength UI */}
+                                    <AnimatePresence>
+                                        {formData.password && (
+                                            <motion.div
+                                                initial={{ opacity: 0, height: 0 }}
+                                                animate={{ opacity: 1, height: 'auto' }}
+                                                exit={{ opacity: 0, height: 0 }}
+                                                className="mt-3 overflow-hidden"
+                                            >
+                                                <div className="border border-[var(--color-border-subtle)] bg-[var(--color-bg-elevated)] p-3">
+                                                    <div className="flex items-center gap-2 mb-3">
+                                                        <div className="flex-1 flex gap-[2px] h-1.5 bg-[var(--color-bg-deep)]">
+                                                            {[1, 2, 3, 4, 5].map(i => (
+                                                                <div key={i}
+                                                                    className="flex-1 transition-all duration-200"
+                                                                    style={{
+                                                                        backgroundColor: i <= passwordStrength.score
+                                                                            ? passwordStrength.color
+                                                                            : 'transparent',
+                                                                    }}
+                                                                />
+                                                            ))}
+                                                        </div>
+                                                        <span className="text-[10px] font-mono tracking-widest w-16 text-right" style={{ color: passwordStrength.color }}>
+                                                            {passwordStrength.label}
+                                                        </span>
+                                                    </div>
+
+                                                    <div className="grid grid-cols-2 gap-y-1.5 gap-x-2">
+                                                        {passwordStrength.checks.map((check, i) => (
+                                                            <div key={i} className="flex items-center gap-1.5 text-[10px] font-mono whitespace-nowrap"
+                                                                style={{ color: check.met ? 'var(--color-safe)' : 'var(--color-text-muted)' }}>
+                                                                <span>{check.met ? '[x]' : '[ ]'}</span>
+                                                                {check.label}
+                                                            </div>
+                                                        ))}
+                                                    </div>
+                                                </div>
+                                            </motion.div>
+                                        )}
+                                    </AnimatePresence>
+                                </div>
+
+                                <button
+                                    type="submit"
+                                    disabled={loading}
+                                    className="btn btn-primary w-full mt-4"
+                                >
+                                    {loading ? (
+                                        <span className="flex items-center gap-2">
+                                            <svg className="animate-spin h-4 w-4" viewBox="0 0 24 24">
+                                                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" fill="none" />
+                                                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                                            </svg>
+                                            Registering...
+                                        </span>
+                                    ) : (
+                                        'Create Account'
+                                    )}
+                                </button>
+                            </form>
                         </div>
 
-                        <button type="submit" className="btn btn-primary w-full mt-2" disabled={loading}>
-                            {loading ? (
-                                <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
-                            ) : (
-                                <>Register <ArrowRight size={14} /></>
-                            )}
-                        </button>
-
-                        <div className="text-center mt-2 text-xs text-text-muted">
-                            <span>Already have an account? </span>
-                            <Link to="/login" className="font-semibold text-canvas hover:text-signal transition-colors">
+                        {/* Form Footer */}
+                        <div className="px-6 py-4 border-t border-[var(--color-border-subtle)] bg-[var(--color-bg-deep)] flex justify-between items-center text-xs font-mono">
+                            <span className="text-[var(--color-text-muted)]">Already have an account?</span>
+                            <Link to="/login" className="text-[var(--color-signal)] hover:text-white font-bold tracking-[0.1em]">
                                 Sign In
                             </Link>
                         </div>
-                    </form>
+                    </motion.div>
                 </div>
-            </motion.div>
+            </div>
         </div>
     );
 };

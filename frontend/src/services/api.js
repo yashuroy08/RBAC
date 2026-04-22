@@ -45,6 +45,7 @@ export const authAPI = {
     verifyMfa: (data) => api.post('/auth/verify-mfa', data),
     getTrustedDevices: () => api.get('/auth/trusted-devices'),
     revokeTrustedDevice: (deviceId) => api.delete(`/auth/trusted-devices/${deviceId}/revoke`),
+    resetPassword: (data) => api.post('/auth/reset-password', data),
 };
 
 export const userAPI = {
