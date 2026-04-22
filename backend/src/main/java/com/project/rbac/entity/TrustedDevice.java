@@ -36,6 +36,12 @@ public class TrustedDevice {
     @Column(name = "is_trusted")
     private boolean trusted = true;
 
+    @Column(name = "ip_address", length = 45)
+    private String ipAddress;
+
+    @Column(name = "location", length = 100)
+    private String location; // Geo-resolved location (e.g. "Mumbai, India")
+
     @Column(name = "last_login_time")
     private LocalDateTime lastLoginTime;
 

@@ -20,6 +20,7 @@ public class SessionInfoDTO {
     private String deviceId;
     private String deviceName;
     private String ipAddress;
+    private String location;
     private LocalDateTime loginTime;
     private LocalDateTime lastAccessedTime;
     private boolean active;

@@ -45,6 +45,9 @@ public class UserSession {
     @Column(name = "ip_address", length = 45)
     private String ipAddress;
 
+    @Column(name = "location", length = 100)
+    private String location; // Geo-resolved location (e.g. "Mumbai, India")
+
     @Column(name = "login_time", nullable = false)
     private LocalDateTime loginTime;
 

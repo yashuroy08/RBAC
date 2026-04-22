@@ -48,7 +48,7 @@ public class JwtTokenProvider {
         }
     }
 
-    public String generateToken(Authentication authentication) {
+    public String generateToken(Authentication authentication, String sessionId) {
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
         Date now = new Date();
@@ -62,6 +62,7 @@ public class JwtTokenProvider {
                 .setSubject(Long.toString(userPrincipal.getId()))
                 .claim("username", userPrincipal.getUsername())
                 .claim("roles", roles)
+                .claim("sessionId", sessionId)
                 .setIssuedAt(now)
                 .setExpiration(expiryDate)
                 .signWith(key, SignatureAlgorithm.HS512)
@@ -76,6 +77,16 @@ public class JwtTokenProvider {
                 .getBody();
 
         return Long.parseLong(claims.getSubject());
+    }
+
+    public String getSessionIdFromJWT(String token) {
+        Claims claims = Jwts.parserBuilder()
+                .setSigningKey(key)
+                .build()
+                .parseClaimsJws(token)
+                .getBody();
+
+        return claims.get("sessionId", String.class);
     }
 
     public boolean validateToken(String authToken) {

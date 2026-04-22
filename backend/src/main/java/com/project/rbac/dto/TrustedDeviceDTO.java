@@ -9,6 +9,8 @@ public class TrustedDeviceDTO {
     private String deviceId;
     private String deviceName;
     private boolean trusted;
+    private String ipAddress;
+    private String location;
     private LocalDateTime lastLoginTime;
     private LocalDateTime createdAt;
 }

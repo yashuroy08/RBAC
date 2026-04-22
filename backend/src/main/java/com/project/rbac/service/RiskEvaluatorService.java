@@ -51,6 +51,7 @@ public class RiskEvaluatorService {
     private final SessionInvalidationService sessionInvalidationService;
     private final TrustedDeviceRepository trustedDeviceRepository;
     private final MfaService mfaService;
+    private final GeoLocationService geoLocationService;
 
     @Value("${risk.evaluator.max-sessions:2}")
     private int maxAllowedSessions;
@@ -82,10 +83,14 @@ public class RiskEvaluatorService {
                     return newSession;
                 });
 
+        // Resolve geo-location from IP (non-blocking, returns "Unknown" on failure)
+        String location = geoLocationService.resolve(ipAddress);
+
         userSession.setUser(user);
         userSession.setDeviceId(deviceId);
         userSession.setDeviceName(deviceName);
         userSession.setIpAddress(ipAddress);
+        userSession.setLocation(location);
         userSession.setLoginTime(LocalDateTime.now());
         userSession.setActive(true);
 
@@ -104,9 +109,11 @@ public class RiskEvaluatorService {
             TrustedDevice device = existingDevice.get();
             if (device.getDeviceName() == null || device.getDeviceName().equals("Unknown Device")) {
                 device.setDeviceName(deviceName);
-                device.setLastLoginTime(LocalDateTime.now());
-                trustedDeviceRepository.save(device);
             }
+            device.setIpAddress(ipAddress);
+            device.setLocation(location);
+            device.setLastLoginTime(LocalDateTime.now());
+            trustedDeviceRepository.save(device);
         } else {
             // Create a new untrusted device record by default
             // It will be marked as trusted only after MFA verification
@@ -114,6 +121,8 @@ public class RiskEvaluatorService {
             newDevice.setUser(user);
             newDevice.setDeviceId(deviceId);
             newDevice.setDeviceName(deviceName);
+            newDevice.setIpAddress(ipAddress);
+            newDevice.setLocation(location);
             newDevice.setTrusted(false); // New devices must pass MFA first
             newDevice.setLastLoginTime(LocalDateTime.now());
             trustedDeviceRepository.save(newDevice);
@@ -361,6 +370,7 @@ public class RiskEvaluatorService {
     @Transactional(readOnly = true)
     public List<TrustedDeviceDTO> getTrustedDevicesForUser(Long userId) {
         return trustedDeviceRepository.findByUserId(userId).stream()
+                .filter(TrustedDevice::isTrusted)
                 .map(this::convertToDeviceDTO)
                 .collect(Collectors.toList());
     }
@@ -382,14 +392,12 @@ public class RiskEvaluatorService {
             return false;
         }
 
-        log.info("🚫 Revoking trust for user {} on device: {}", userId, device.getDeviceName());
+        String deviceName = device.getDeviceName();
+        String deviceId = device.getDeviceId();
+        log.info("🚫 Revoking trust for user {} on device: {}", userId, deviceName);
 
-        // 1. Remove trust
-        device.setTrusted(false);
-        trustedDeviceRepository.save(device);
-
-        // 2. Invalidate all sessions for this user on this specific device
-        List<UserSession> activeSessionsOnDevice = userSessionRepository.findActiveByUserIdAndDeviceId(userId, device.getDeviceId());
+        // 1. Invalidate all sessions for this user on this specific device
+        List<UserSession> activeSessionsOnDevice = userSessionRepository.findActiveByUserIdAndDeviceId(userId, deviceId);
         
         for (UserSession session : activeSessionsOnDevice) {
             log.info("⚠️ Kicking out session {} due to device revocation", session.getSessionId());
@@ -399,9 +407,22 @@ public class RiskEvaluatorService {
             
             // Mark as inactive in DB
             session.setActive(false);
-            userSessionRepository.save(session);
+            userSessionRepository.saveAndFlush(session);
         }
-        
+
+        // 2. Fully delete the device record so it disappears from trusted-devices list
+        trustedDeviceRepository.delete(device);
+        trustedDeviceRepository.flush();
+
+        // 3. Log the revocation as a risk event
+        User user = userRepository.findById(userId)
+                .orElseThrow(() -> new RuntimeException("User not found"));
+        int activeSessions = userSessionRepository.countActiveSessionsByUserId(userId);
+        double riskScore = calculateRiskScore(activeSessions, maxAllowedSessions);
+        logRiskEvent(user, activeSessions, riskScore,
+                "DEVICE_REVOKED: " + deviceName + " (" + deviceId.substring(0, Math.min(8, deviceId.length())) + ")");
+
+        log.info("✅ Device {} fully removed and {} sessions terminated for user {}", deviceName, activeSessionsOnDevice.size(), userId);
         return true;
     }
 
@@ -411,6 +432,8 @@ public class RiskEvaluatorService {
         dto.setDeviceId(device.getDeviceId());
         dto.setDeviceName(device.getDeviceName());
         dto.setTrusted(device.isTrusted());
+        dto.setIpAddress(device.getIpAddress());
+        dto.setLocation(device.getLocation());
         dto.setLastLoginTime(device.getLastLoginTime());
         dto.setCreatedAt(device.getCreatedAt());
         return dto;
@@ -534,6 +557,7 @@ public class RiskEvaluatorService {
         dto.setDeviceId(session.getDeviceId());
         dto.setDeviceName(session.getDeviceName());
         dto.setIpAddress(session.getIpAddress());
+        dto.setLocation(session.getLocation());
         dto.setLoginTime(session.getLoginTime());
         dto.setLastAccessedTime(session.getLastAccessedTime());
         dto.setActive(session.isActive());

@@ -486,6 +486,7 @@ const Dashboard = () => {
                                                 </div>
                                                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-text-muted">
                                                     <span className="flex items-center gap-1"><Globe size={9} /> {session.ipAddress || '—'}</span>
+                                                    <span className="flex items-center gap-1"><MapPin size={9} /> {session.location || 'Unknown'}</span>
                                                     <span className="flex items-center gap-1"><Clock size={9} /> {formatDate(session.loginTime)}</span>
                                                 </div>
                                             </div>
@@ -529,11 +530,14 @@ const Dashboard = () => {
                                                     {device.deviceName || 'Unknown Device'}
                                                 </span>
                                                 <div className="flex flex-wrap gap-x-3 gap-y-1 text-[10px] text-text-muted mt-1">
-                                                    <span className="flex items-center gap-1 font-mono">
-                                                        <Info size={9} /> {device.deviceFingerprint?.substring(0, 12)}...
+                                                    <span className="flex items-center gap-1">
+                                                        <Globe size={9} /> {device.ipAddress || '—'}
                                                     </span>
                                                     <span className="flex items-center gap-1">
-                                                        <Clock size={9} /> {formatDate(device.createdAt)}
+                                                        <MapPin size={9} /> {device.location || 'Unknown'}
+                                                    </span>
+                                                    <span className="flex items-center gap-1">
+                                                        <Clock size={9} /> {formatDate(device.lastLoginTime)}
                                                     </span>
                                                 </div>
                                             </div>

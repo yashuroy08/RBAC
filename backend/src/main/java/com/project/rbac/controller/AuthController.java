@@ -122,7 +122,7 @@ public class AuthController {
                 mfaRequired ? "MFA step-up required" : "User login successful", 
                 null, mfaRequired ? "PENDING" : "SUCCESS");
 
-            String jwt = tokenProvider.generateToken(authResult.authentication);
+            String jwt = tokenProvider.generateToken(authResult.authentication, sessionId);
 
             return ResponseEntity.ok(ApiResponse.success(
                     message,
