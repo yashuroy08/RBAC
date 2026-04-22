@@ -3,8 +3,8 @@ package com.project.rbac.service;
 import com.project.rbac.entity.User;
 import com.resend.Resend;
 import com.resend.core.exception.ResendException;
-import com.resend.services.emails.model.SendEmailRequest;
-import com.resend.services.emails.model.SendEmailResponse;
+import com.resend.services.emails.model.CreateEmailOptions;
+import com.resend.services.emails.model.CreateEmailResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -64,7 +64,7 @@ public class MfaService {
 
     private void sendEmail(String to, String username, String otp) {
         try {
-            SendEmailRequest sendEmailRequest = SendEmailRequest.builder()
+            CreateEmailOptions params = CreateEmailOptions.builder()
                     .from("RBAC Security <onboarding@resend.dev>")
                     .to(to)
                     .subject("Your RBAC Verification Code")
@@ -75,7 +75,7 @@ public class MfaService {
                           "If you did not attempt to log in, please change your password immediately.")
                     .build();
 
-            SendEmailResponse data = resend.emails().send(sendEmailRequest);
+            CreateEmailResponse data = resend.emails().send(params);
             log.info("✅ MFA Email sent successfully to {}. Resend ID: {}", to, data.getId());
         } catch (ResendException e) {
             log.error("❌ Failed to send MFA email to {}: {}", to, e.getMessage());
