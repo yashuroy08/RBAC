@@ -8,6 +8,8 @@ import com.project.rbac.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.core.annotation.Order;
+import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
@@ -30,11 +32,15 @@ public class DatabaseInitializer implements CommandLineRunner {
     private final RoleRepository roleRepository;
     private final UserRepository userRepository;
     private final PasswordEncoder passwordEncoder;
+    private final JdbcTemplate jdbcTemplate;
 
     @Override
     @Transactional
     public void run(String... args) throws Exception {
         log.info("=== DATABASE INITIALIZATION STARTED ===");
+
+        // Create Spring Session tables if they don't exist
+        initializeSpringSessionTables();
 
         // Initialize roles
         initializeRoles();
@@ -43,6 +49,45 @@ public class DatabaseInitializer implements CommandLineRunner {
         initializeAdminUser();
 
         log.info("=== DATABASE INITIALIZATION COMPLETED ===\n");
+    }
+
+    /**
+     * Create Spring Session JDBC tables if they don't exist.
+     * This is the definitive fix for the "relation spring_session does not exist" error.
+     * Spring Session's auto-init can fail when the platform SQL dialect is wrong.
+     */
+    private void initializeSpringSessionTables() {
+        try {
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS SPRING_SESSION (" +
+                "    PRIMARY_ID CHAR(36) NOT NULL," +
+                "    SESSION_ID CHAR(36) NOT NULL," +
+                "    CREATION_TIME BIGINT NOT NULL," +
+                "    LAST_ACCESS_TIME BIGINT NOT NULL," +
+                "    MAX_INACTIVE_INTERVAL INT NOT NULL," +
+                "    EXPIRY_TIME BIGINT NOT NULL," +
+                "    PRINCIPAL_NAME VARCHAR(100)," +
+                "    CONSTRAINT SPRING_SESSION_PK PRIMARY KEY (PRIMARY_ID)" +
+                ")"
+            );
+            jdbcTemplate.execute(
+                "CREATE TABLE IF NOT EXISTS SPRING_SESSION_ATTRIBUTES (" +
+                "    SESSION_PRIMARY_ID CHAR(36) NOT NULL," +
+                "    ATTRIBUTE_NAME VARCHAR(200) NOT NULL," +
+                "    ATTRIBUTE_BYTES BYTEA NOT NULL," +
+                "    CONSTRAINT SPRING_SESSION_ATTRIBUTES_PK PRIMARY KEY (SESSION_PRIMARY_ID, ATTRIBUTE_NAME)," +
+                "    CONSTRAINT SPRING_SESSION_ATTRIBUTES_FK FOREIGN KEY (SESSION_PRIMARY_ID) REFERENCES SPRING_SESSION(PRIMARY_ID) ON DELETE CASCADE" +
+                ")"
+            );
+            // Create indexes (IF NOT EXISTS is PostgreSQL 9.5+)
+            try { jdbcTemplate.execute("CREATE UNIQUE INDEX IF NOT EXISTS SPRING_SESSION_IX1 ON SPRING_SESSION (SESSION_ID)"); } catch (Exception ignored) {}
+            try { jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS SPRING_SESSION_IX2 ON SPRING_SESSION (EXPIRY_TIME)"); } catch (Exception ignored) {}
+            try { jdbcTemplate.execute("CREATE INDEX IF NOT EXISTS SPRING_SESSION_IX3 ON SPRING_SESSION (PRINCIPAL_NAME)"); } catch (Exception ignored) {}
+            
+            log.info("✓ Spring Session tables verified/created");
+        } catch (Exception e) {
+            log.warn("⚠ Could not create Spring Session tables (may already exist or non-PostgreSQL DB): {}", e.getMessage());
+        }
     }
 
     /**

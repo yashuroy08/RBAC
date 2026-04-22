@@ -33,6 +33,10 @@ services:
         value: none
       - key: SHOW_SQL
         value: "false"
+      - key: DB_PLATFORM
+        value: postgresql
+      - key: HIKARI_MAX_POOL
+        value: "5"
 
 databases:
   - name: rbac-db
