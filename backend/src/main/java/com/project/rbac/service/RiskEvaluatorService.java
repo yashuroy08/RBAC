@@ -549,7 +549,7 @@ public class RiskEvaluatorService {
      */
     @Transactional(readOnly = true)
     public List<RiskEvent> getRecentRiskEvents(Long userId, int limit) {
-        return riskEventRepository.findRecentEventsByUserId(userId, limit);
+        return riskEventRepository.findRecentEventsByUserId(userId, org.springframework.data.domain.PageRequest.of(0, limit));
     }
 
     /**

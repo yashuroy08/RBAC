@@ -42,8 +42,8 @@ public interface RiskEventRepository extends JpaRepository<RiskEvent, Long> {
      * @param limit  Number of events to retrieve
      * @return List of recent risk events
      */
-    @Query(value = "SELECT * FROM risk_events WHERE user_id = :userId ORDER BY event_time DESC OFFSET 0 ROWS FETCH NEXT :limit ROWS ONLY", nativeQuery = true)
-    List<RiskEvent> findRecentEventsByUserId(@Param("userId") Long userId, @Param("limit") int limit);
+    @Query("SELECT re FROM RiskEvent re WHERE re.userId = :userId ORDER BY re.eventTime DESC")
+    List<RiskEvent> findRecentEventsByUserId(@Param("userId") Long userId, org.springframework.data.domain.Pageable pageable);
 
     /**
      * Delete all risk events for a user (used during user deletion)
