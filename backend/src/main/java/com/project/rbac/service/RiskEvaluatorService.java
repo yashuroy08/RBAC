@@ -131,8 +131,8 @@ public class RiskEvaluatorService {
         if (!isDeviceTrusted) {
             log.warn("🚨 [MFA TRIGGER] UNTRUSTED DEVICE for user: {}. Setting mfaRequired=true", user.getUsername());
             
-            // Generate OTP and set MFA flag
-            mfaService.generateOtp(userId);
+            // Generate OTP and send via email (Resend)
+            mfaService.generateOtp(user);
             
             response.setMfaRequired(true);
             response.setMfaMessage("Login from an unrecognized device. Please enter the OTP sent to your email to trust this device.");

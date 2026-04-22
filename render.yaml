@@ -37,6 +37,8 @@ services:
         value: postgresql
       - key: HIKARI_MAX_POOL
         value: "5"
+      - key: RESEND_API_KEY
+        sync: false # Set this manually in the Render dashboard
 
 databases:
   - name: rbac-db
