@@ -22,6 +22,10 @@ import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import java.util.Arrays;
 import java.util.Collections;
 
+import org.springframework.core.Ordered;
+import org.springframework.core.annotation.Order;
+import org.springframework.web.filter.CorsFilter;
+
 /**
  * Spring Security Configuration
  * 
@@ -42,7 +46,7 @@ public class SecurityConfig {
     private final com.project.rbac.security.MfaEnforcementFilter mfaEnforcementFilter;
     private final com.project.rbac.security.JwtAuthenticationFilter jwtAuthenticationFilter;
 
-    @Value("${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173}")
+    @Value("${ALLOWED_ORIGINS:http://localhost:3000,http://localhost:5173,https://rbac-guard.vercel.app}")
     private String allowedOriginsEnv;
 
     /**
@@ -198,5 +202,16 @@ public class SecurityConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", configuration);
         return source;
+    }
+
+    /**
+     * High-priority CorsFilter bean
+     * Ensures OPTIONS preflight requests get CORS headers BEFORE
+     * Spring Security's filter chain can reject them with 403.
+     */
+    @Bean
+    @Order(Ordered.HIGHEST_PRECEDENCE)
+    public CorsFilter corsFilter() {
+        return new CorsFilter(corsConfigurationSource());
     }
 }
