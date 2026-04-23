@@ -55,9 +55,10 @@ public class MfaService {
         if (!"mock".equalsIgnoreCase(mailUsername)) {
             sendEmail(userEmail, user.getUsername(), otp);
         } else {
-            log.info("--------------------------------------------------");
-            log.info(">>> MOCK OTP FOR {}: {} <<<", userEmail, otp);
-            log.info("--------------------------------------------------");
+            log.warn("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
+            log.warn("🔐 MOCK OTP GENERATED FOR: {}", userEmail);
+            log.warn("👉 CODE: {} 👈", otp);
+            log.warn("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
         }
         
         return otp;
@@ -85,10 +86,10 @@ public class MfaService {
         } catch (MessagingException e) {
             log.error("❌ Failed to construct MFA email to {}: {}", to, e.getMessage());
             // Fallback to log so user isn't locked out during dev/testing
-            log.info(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
+            log.warn(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
         } catch (Exception e) {
             log.error("❌ Failed to send MFA email to {}: {}", to, e.getMessage());
-            log.info(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
+            log.warn(">>> FALLBACK OTP FOR {}: {} <<<", to, otp);
         }
     }
 
