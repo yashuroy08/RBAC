@@ -1,105 +1,85 @@
-# RBAC Risk Evaluator System — API Documentation
+# RBAC Identity Service API Reference
 
-This document provides a technical specification of the available REST APIs in the RBAC Risk Evaluator System.
+This document provides a detailed guide to the RBAC Identity Service API. For interactive testing, please use the Swagger UI available during local development.
 
-## 🔑 Authentication Mechanism
+## 🔐 Authentication Flow
 
-The system uses a **Hybrid Authentication Model**:
-1. **JWT (JSON Web Token):** Used for stateless authentication during cross-origin requests.
-2. **Spring Session (JDBC):** Used for stateful session management, tracking active devices, and enforcing risk-based invalidation.
+The system uses a **Risk-Based Authentication (RBA)** flow. A successful login doesn't always mean the user is "in"; they might be challenged with MFA based on their risk score.
 
-### Security Headers
-Every authenticated request must include:
-- `Authorization: Bearer <JWT_TOKEN>`
-- `Cookie: RBAC_SESSION=<SESSION_ID>` (handled automatically by browsers if `withCredentials: true` is set)
+### 1. Login Phase
+**Endpoint:** `POST /api/auth/login`
 
----
+**Process:**
+- User submits credentials.
+- System evaluates **Risk Factors**: IP Address, Device Fingerprint, Location, and Time.
+- **Possible Responses:**
+  - `200 OK`: Successful login (Low Risk). Session cookie is set.
+  - `302 Found`: MFA Required (Medium Risk). User is redirected/flagged to verify email.
+  - `401 Unauthorized`: Invalid credentials.
+  - `403 Forbidden`: Account locked or High Risk (Automatic block).
 
-## 🛰️ API Endpoints
+### 2. MFA Verification
+**Endpoint:** `POST /api/auth/verify-mfa`
 
-### 1. Authentication (`/api/auth`)
-
-| Method | Endpoint | Description | Auth Required |
-| :--- | :--- | :--- | :--- |
-| `POST` | `/register` | Create a new user account | No |
-| `POST` | `/login` | Authenticate user & start session | No |
-| `POST` | `/logout` | Terminate current session | Yes |
-| `GET` | `/health` | Check backend service health | No |
-| `GET` | `/me` | Get current authenticated user details | Yes |
-
-#### Login Request Payload
-```json
-{
-  "username": "admin",
-  "password": "securePassword",
-  "latitude": 40.7128,
-  "longitude": -74.0060
-}
-```
-*Note: Geo-coordinates are used by the Risk Engine to verify location-based access policies.*
+**Process:**
+- Triggered if the login risk score is above the threshold.
+- A 6-digit code is sent to the registered email.
+- User submits the code to promote the session to "Trusted" status.
 
 ---
 
-### 2. User Services (`/api/user`)
+## 🛡️ Key Endpoints
 
+### User Management
 | Method | Endpoint | Description | Roles |
 | :--- | :--- | :--- | :--- |
-| `GET` | `/{id}` | Retrieve user profile by ID | USER, ADMIN |
-| `GET` | `/my-risk-status` | Get current user's recalculated risk score | USER, ADMIN |
-| `GET` | `/my-sessions` | List all active sessions/devices | USER, ADMIN |
-| `GET` | `/my-risk-events` | View recent security events for the current account | USER, ADMIN |
+| `POST` | `/api/auth/register` | Register a new user | Public |
+| `GET` | `/api/auth/me` | Get current user profile | Authenticated |
+| `PUT` | `/api/users/profile` | Update profile information | User/Admin |
+
+### Session & Security
+| Method | Endpoint | Description | Roles |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/auth/sessions` | List all active sessions | User |
+| `DELETE` | `/api/auth/sessions/{id}` | Revoke a specific session | User/Admin |
+| `GET` | `/api/auth/trusted-devices` | List trusted devices | User |
+
+### Administrative Controls (RBAC)
+| Method | Endpoint | Description | Roles |
+| :--- | :--- | :--- | :--- |
+| `GET` | `/api/admin/users` | List all users | ADMIN |
+| `PATCH` | `/api/admin/users/{id}/role` | Change user role | ADMIN |
+| `GET` | `/api/admin/audit-logs` | View system audit trail | AUDITOR/ADMIN |
 
 ---
 
-### 3. Risk Intelligence (`/api/risk`)
+## 📈 Risk Evaluation Logic
 
-*Note: These endpoints are generally restricted to **ADMIN** role.*
+The system calculates a `risk_score` (0-100) for every request:
+- **Unknown Device:** +25 points
+- **Unknown IP/Location:** +30 points
+- **Impossible Travel:** +50 points (e.g., login from USA then London in 1 hour)
 
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/all-status` | View risk summary for all system users |
-| `GET` | `/status/{userId}` | Get current risk indicators for a specific user |
-| `GET` | `/evaluate/{userId}` | Trigger a manual risk re-evaluation |
-| `GET` | `/sessions/{userId}` | View all active sessions for a specific user |
-| `POST` | `/invalidate/{userId}` | Force-terminate all active sessions for a user |
-
----
-
-### 4. Admin Management (`/api/admin`)
-
-| Method | Endpoint | Description |
-| :--- | :--- | :--- |
-| `GET` | `/users` | Retrieve a list of all registered users |
-| `POST` | `/users/{id}/assign-admin` | Elevate a user to ADMIN status |
-| `POST` | `/users/{id}/lock` | Manually lock a user account |
-| `GET` | `/audit-logs` | Retrieve global system audit trails |
-| `POST` | `/location` | Define or update a Geo-fencing policy |
-| `PUT` | `/location/{id}/toggle` | Enable/Disable a specific location policy |
+**Threshold Actions:**
+- **0-30:** No challenge.
+- **31-70:** MFA Required.
+- **71+:** Automatic Session Termination & Account Lock.
 
 ---
 
-## 🛡️ Risk Evaluation Indicators
+## 🛠️ Integration Guide
 
-The system calculates a risk score (0-100) based on the following weighted factors:
+### Base URL
+- **Local:** `http://localhost/api`
+- **Production:** `https://your-api-url.com/api`
 
-1. **Unsuccessful Logins:** Failure attempts within the last hour.
-2. **Geographical Variance:** Distance from designated "Safe Zones."
-3. **Session Concurrency:** Multiple concurrent sessions from different IP ranges.
-4. **Account Age:** Newer accounts are monitored with higher sensitivity initially.
+### Content Type
+All requests should include:
+`Content-Type: application/json`
 
-### Automated Responses
-- **Score < 40:** Trusted access.
-- **Score 40-70:** Flagged (triggers MFA requirement).
-- **Score > 70:** Critical (auto-locks account & invalidates all sessions).
-
----
-
-## 🚦 Common Status Codes
-
-| Code | Meaning | Context |
-| :--- | :--- | :--- |
-| `200 OK` | Success | Request processed correctly. |
-| `401 Unauthorized` | Identity Failure | Credentials missing or token expired. |
-| `403 Forbidden` | Permission Denied | Role lacks sufficient privileges. |
-| `400 Bad Request` | Validation Error | Missing fields or malformed JSON. |
-| `500 Internal Server` | System Error | Unexpected server-side failure. |
+### Error Handling
+The API returns standard HTTP status codes:
+- `400`: Validation Error
+- `401`: Session Expired / Not Logged In
+- `403`: Insufficient Permissions (RBAC)
+- `429`: Rate Limit Exceeded

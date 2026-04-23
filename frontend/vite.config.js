@@ -10,7 +10,7 @@ export default defineConfig({
     allowedHosts: true, // Allow access from any host (e.g., local IP, ngrok)
     proxy: {
       '/api': {
-        target: 'http://localhost:8081',
+        target: 'http://localhost:80',
         changeOrigin: true,
       }
     }

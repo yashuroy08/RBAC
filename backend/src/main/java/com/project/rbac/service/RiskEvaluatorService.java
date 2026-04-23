@@ -312,7 +312,7 @@ public class RiskEvaluatorService {
 
             try {
                 log.warn("Kicking out session: {} (Device: {}, IP: {})",
-                        session.getSessionId(), session.getDeviceId(), session.getIpAddress());
+                        session.getSessionId(), session.getDeviceId(), maskIp(session.getIpAddress()));
 
                 // 1. Invalidate HTTP session in Spring Session
                 sessionInvalidationService.invalidateSession(session.getSessionId());
@@ -586,5 +586,11 @@ public class RiskEvaluatorService {
         return userRepository.findAll().stream()
                 .map(user -> getRiskEvaluation(user.getId()))
                 .collect(Collectors.toList());
+    }
+
+    private String maskIp(String ip) {
+        if (ip == null || !ip.contains(".")) return ip;
+        int lastDot = ip.lastIndexOf(".");
+        return ip.substring(0, lastDot) + ".***";
     }
 }

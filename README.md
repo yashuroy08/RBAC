@@ -1,102 +1,77 @@
-# Adaptive RBAC & Risk Evaluation System
+# 🛡️ RBAC Identity Service
 
-![Project Status](https://img.shields.io/badge/Status-Active-brightgreen)
-![Tech Stack](https://img.shields.io/badge/Stack-Spring_Boot_%7C_React-blue)
-![Security](https://img.shields.io/badge/Model-Zero_Trust-red)
+[![Spring Boot](https://img.shields.io/badge/Spring_Boot-3.0-6DB33F?logo=spring&logoColor=white)](https://spring.io/projects/spring-boot)
+[![PostgreSQL](https://img.shields.io/badge/PostgreSQL-15-316192?logo=postgresql&logoColor=white)](https://www.postgresql.org/)
+[![Redis](https://img.shields.io/badge/Redis-7-DC382D?logo=redis&logoColor=white)](https://redis.io/)
+[![Docker](https://img.shields.io/badge/Docker-Enabled-2496ED?logo=docker&logoColor=white)](https://www.docker.com/)
 
-A production-ready Role-Based Access Control (RBAC) system featuring an integrated **Adaptive Risk Evaluation Engine**. This platform implements security-as-code principles by calculating real-time risk scores based on session telemetry, geolocation, and behavioral analytics.
-
-## 🏗️ Architectural Overview
-
-The system is designed as a decoupled full-stack application leveraging a **Hybrid Security Model**:
-- **Identity Provider (Backend):** Spring Boot service managing JWT issuance and JDBC-backed session state.
-- **Risk Engine:** A dynamic evaluator that monitors cross-referenced data points to enforce adaptive security policies.
-- **Client Interface (Frontend):** React 18 application with high-fidelity telemetry gathering and administrative orchestration.
-
-For a deep dive into the service layer, see our [API Documentation](API_DOCUMENTATION.md).
+A production-ready, highly secure **Role-Based Access Control (RBAC)** Identity Management Service. Built with Java Spring Boot, this platform delivers comprehensive identity management, session tracking, and adaptive security mechanisms out-of-the-box.
 
 ---
 
-## 🛡️ Core Security Capabilities
+## 📖 Overview
 
-### 1. Dynamic Risk Scoring
-Traditional RBAC is static. Our system adds a fluid intelligence layer:
-- **Spatial Validation:** Real-time Geo-fencing using Google Maps API coordinates.
-- **Behavioral Fingerprinting:** Tracking failure rates, session concurrency, and IP volatility.
-- **Automated Mitigation:** High-risk scores trigger immediate session invalidation and account lockdowns.
+The RBAC Identity Service acts as a centralized authentication and authorization hub. It goes beyond simple JWT generation by incorporating a robust Redis-backed session management system, geographic anomaly detection, and trusted device tracking. It is designed to be deployed as a microservice in an enterprise architecture, fronted by an Nginx reverse proxy that handles rate limiting and security headers.
 
-### 2. Zero-Trust Session Management
-- **JDBC Persistence:** Sessions are persisted in the database to allow for cross-node scalability and administrative termination.
-- **MFA Flow:** Suspicious activity automatically upgrades authentication requirements from standard password to OTP.
+## ✨ Key Features
 
-### 3. Comprehensive Audit Logic
-- Every administrative action and security event is logged to a non-repudiable audit trail, searchable via the Admin Panel.
-
----
+*   **Advanced Authentication:** Secure JWT-based authentication with stateful session tracking via Redis.
+*   **Role-Based Access Control:** Granular permission management across distinct user roles (Admin, Manager, User).
+*   **Adaptive Security & MFA:** Context-aware security that flags suspicious logins based on IP location anomalies and unknown devices, triggering dynamic MFA flows.
+*   **Device & Session Management:** Users can view active sessions, revoke access to specific devices, and manage trusted devices.
+*   **Security Hardened:** 
+    *   Strict Nginx reverse proxy configurations (Rate Limiting, CSP, XSS Protection).
+    *   Automated PII log sanitization (IP Masking).
+*   **Real-time Observability:** Built-in integration with GoAccess (Nginx traffic analytics) and RedisInsight (cache exploration).
+*   **Horizontal Scalability:** Docker Compose architecture ready for multi-node backend scaling.
 
 ## 🛠️ Technology Stack
 
-### Backend Infrastructure
-- **Core:** Spring Boot 2.7.18 (Java 11)
-- **Security:** Spring Security managed lifecycle
-- **Persistence:** PostgreSQL / MS SQL Server (Database agnostic via JPQL)
-- **Session Layer:** Spring Session JDBC
-- **API Spec:** Swagger / Springfox 3.0.0
+| Component | Technology |
+| :--- | :--- |
+| **Backend Framework** | Java 17, Spring Boot 3.x, Spring Security |
+| **Database** | PostgreSQL 15 |
+| **Caching & Sessions** | Redis 7 |
+| **Web Server / Proxy** | Nginx (Alpine) |
+| **Containerization** | Docker, Docker Compose |
+| **Monitoring** | GoAccess (Traffic), RedisInsight (Cache) |
+| **Frontend Integration** | React (Vite) |
 
-### Frontend Infrastructure
-- **Core:** React 18 / Vite
-- **State Management:** React Context API
-- **Visuals:** Tailwind CSS / Framer Motion
-- **Integrations:** Axios, Leaflet (Maps), Lucide Icons
+## 🚀 Getting Started
 
----
+To get the project running on your local machine, please refer to our comprehensive setup documentation.
 
-## 📂 Repository Structure
+👉 **[View the Setup Guide](SETUP_GUIDE.md)**
 
-```text
-RBAC/
-├── backend/            # Enterprise Java Backend
-│   ├── src/main/java/  # Business Logic & Security Configs
-│   └── src/resources/  # Application Environment Props
-├── frontend/           # React Frontend Application
-│   ├── src/pages/      # Dynamic routes (Admin, User, Auth)
-│   └── src/components/ # Atomic UI components
-├── database/           # Schema migration scripts
-└── pom.xml             # Maven Project Object Model
-```
+## 📚 API Documentation
 
----
+The service exposes a RESTful API. For detailed endpoints, request payloads, and example responses, please consult the API documentation.
 
-## ⚙️ Deployment & Development
+👉 **[View the API Documentation](API_DOCUMENTATION.md)**
 
-### Local Setup
-1. **Database:** Ensure a SQL instance is running. The system auto-initializes schema on startup.
-2. **Backend:**
-   ```bash
-   cd backend
-   mvn spring-boot:run
-   ```
-3. **Frontend:**
-   ```bash
-   cd frontend
-   npm install && npm run dev
-   ```
+### OpenAPI Specification
+For automated testing and integration (Postman, Insomnia, or Client Generation), we provide a machine-readable specification:
 
-### Production Deployment
-The project is configured for containerized deployment via the included `Dockerfile` and `render.yaml` orchestration.
-- **Backend:** Deployed on Render (Postgres internal networking).
-- **Frontend:** Optimized Vite build deployed on Vercel.
+💾 **[Download swagger.json](docs/api/swagger.json)** (Exported from live Swagger UI)
+
+
+## 🏗️ Architecture
+
+The application runs in a containerized environment managed by Docker Compose.
+
+1.  **Nginx (`rbac-nginx`)**: Acts as the edge proxy. Handles static file serving for the frontend, routes `/api` requests to the backend, applies rate limits, and enforces security headers.
+2.  **Spring Boot (`rbac-backend`)**: The core identity engine. Connects to Postgres for persistent storage and Redis for ephemeral session state.
+3.  **PostgreSQL (`rbac-postgres`)**: Persistent storage for Users, Roles, Audit Logs, and Trusted Devices.
+4.  **Redis (`rbac-redis`)**: High-performance cache for active JWT sessions, MFA tokens, and quick lookup data.
+5.  **Observability Layer**: `goaccess` and `redisinsight` containers provide deep visibility into the system's operational state.
+
+## 📝 References & Acknowledgments
+
+*   [Spring Security Reference](https://docs.spring.io/spring-security/reference/index.html)
+*   [OWASP Top Ten Security Best Practices](https://owasp.org/www-project-top-ten/)
+*   [GoAccess Nginx Monitoring](https://goaccess.io/)
+*   [Redis Session Management](https://redis.io/docs/manual/patterns/session-management/)
 
 ---
 
-## 🗺️ Engineering Roadmap
-- [x] Adaptive Risk Evaluation Engine
-- [x] Multi-factor Authentication (OTP)
-- [x] Geo-fencing Restrictions
-- [ ] Integration with External IDPs (OAuth2)
-- [ ] AI-driven anomaly detection models
-
----
-
-## 📄 Compliance & License
-This project is architected for enterprise-scale security compliance. Distributed under the MIT License.
+<p align="center">Made with ❤️ by a Professional Developer</p>

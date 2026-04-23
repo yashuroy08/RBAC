@@ -2,7 +2,7 @@ package com.project.rbac;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
-import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHttpSession;
+import org.springframework.cache.annotation.EnableCaching;
 
 /**
  * RBAC Risk Evaluator System
@@ -25,7 +25,7 @@ import org.springframework.session.jdbc.config.annotation.web.http.EnableJdbcHtt
  * @version 1.0.0
  */
 @SpringBootApplication
-@EnableJdbcHttpSession
+@EnableCaching
 public class RbacRiskEvaluatorApplication {
 
     public static void main(String[] args) {

@@ -1,6 +1,7 @@
 package com.project.rbac.service;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.cache.annotation.Cacheable;
 import org.springframework.stereotype.Service;
 
 import java.net.HttpURLConnection;
@@ -25,6 +26,7 @@ public class GeoLocationService {
      * Resolve an IP address to a "City, Country" string.
      * Returns "Unknown" on any failure so it never blocks login.
      */
+    @Cacheable(value = "geoLocations", key = "#ipAddress", unless = "#result == 'Unknown'")
     public String resolve(String ipAddress) {
         if (ipAddress == null || ipAddress.isBlank()
                 || ipAddress.equals("127.0.0.1")
@@ -61,13 +63,13 @@ public class GeoLocationService {
                 String city = extractField(json, "city");
                 String country = extractField(json, "country");
                 String result = (city != null && !city.isEmpty()) ? city + ", " + country : country;
-                log.debug("Geo resolved {} → {}", ipAddress, result);
+                log.debug("Geo resolved *** → {}", result);
                 return result != null ? result : "Unknown";
             }
 
             return "Unknown";
         } catch (Exception e) {
-            log.warn("Geo lookup failed for {}: {}", ipAddress, e.getMessage());
+            log.warn("Geo lookup failed for ***: {}", e.getMessage());
             return "Unknown";
         }
     }
