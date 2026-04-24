@@ -28,12 +28,12 @@ public class MfaEnforcementFilter extends OncePerRequestFilter {
         
         String path = request.getRequestURI();
         
-        // Skip filtering for public auth endpoints and health check
+        // Skip filtering for MFA verification, logout, login, health check, and device management
         if (path.contains("/api/auth/verify-mfa") || 
             path.contains("/api/auth/logout") || 
             path.contains("/api/auth/login") ||
+            path.contains("/api/auth/register") ||
             path.contains("/api/auth/health") ||
-            path.contains("/api/auth/me") ||
             path.contains("/api/auth/trusted-devices") ||
             path.contains("/swagger-ui") ||
             path.contains("/v2/api-docs")) {

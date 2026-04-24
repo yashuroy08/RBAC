@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ShieldCheck, X, ArrowRight, Smartphone, AlertCircle, CheckCircle2 } from 'lucide-react';
 import { authAPI } from '../services/api';
@@ -8,6 +8,13 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
     const [error, setError] = useState('');
     const [loading, setLoading] = useState(false);
     const [success, setSuccess] = useState(false);
+    const mountedRef = useRef(true);
+
+    // Track mounted state to prevent state updates after unmount
+    useEffect(() => {
+        mountedRef.current = true;
+        return () => { mountedRef.current = false; };
+    }, []);
 
     // Auto-focus the first input on open
     useEffect(() => {
@@ -75,9 +82,18 @@ const MfaModal = ({ isOpen, onClose, sessionId, onVerified }) => {
             });
 
             if (response.data.success) {
+                // Extract and validate the JWT token returned by the verify-mfa endpoint
+                const token = response.data.data?.token;
+                if (!token || typeof token !== 'string') {
+                    setError('Verification succeeded but no auth token was received. Please try logging in again.');
+                    return;
+                }
+
                 setSuccess(true);
                 setTimeout(() => {
-                    onVerified();
+                    // Guard against state updates on unmounted component
+                    if (!mountedRef.current) return;
+                    onVerified(token);
                     onClose();
                 }, 1500);
             }

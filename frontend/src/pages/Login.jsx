@@ -239,9 +239,26 @@ const Login = () => {
                 isOpen={mfaData.required}
                 onClose={() => setMfaData({ ...mfaData, required: false })}
                 sessionId={mfaData.sessionId}
-                onVerified={async () => {
-                    await checkAuth();
-                    navigate('/dashboard', { state: { loginMessage: 'Verification successful. Welcome back!' } });
+                onVerified={async (token) => {
+                    // Store the JWT token received from the verify-mfa endpoint
+                    // This is the ONLY token issued when MFA was required
+                    if (token) {
+                        localStorage.setItem('rbac_token', token);
+                    }
+                    // Clean up the temporary MFA session marker
+                    localStorage.removeItem('rbac_mfa_session');
+                    // Now checkAuth() will succeed because:
+                    // 1. We have a valid JWT token in localStorage
+                    // 2. The MFA_PENDING flag was cleared server-side
+                    try {
+                        await checkAuth();
+                        navigate('/dashboard', { state: { loginMessage: 'Verification successful. Welcome back!' } });
+                    } catch (authError) {
+                        console.error('Post-MFA auth check failed:', authError);
+                        setError('Verification succeeded but session could not be established. Please login again.');
+                        setMfaData({ required: false, sessionId: '', message: '' });
+                        localStorage.removeItem('rbac_token');
+                    }
                 }}
             />
         </div>

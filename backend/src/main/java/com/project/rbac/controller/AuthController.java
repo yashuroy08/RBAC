@@ -302,16 +302,37 @@ public class AuthController {
             if (verified) {
                 // IMPORTANT: Remove the MFA_PENDING flag to unlock the session
                 HttpSession session = request.getSession(false);
-                if (session != null) {
-                    session.removeAttribute("MFA_PENDING");
-                    log.info("🔓 Session {} unlocked - MFA verified for user {}", session.getId(), currentUser.getUsername());
+                String sessionId = null;
+                try {
+                    if (session != null) {
+                        session.removeAttribute("MFA_PENDING");
+                        sessionId = session.getId();
+                        log.info("MFA verified and session unlocked for user: {}", currentUser.getUsername());
+                    }
+                } catch (Exception sessionEx) {
+                    log.warn("Failed to clear MFA_PENDING flag for user {}: {}", currentUser.getUsername(), sessionEx.getMessage());
                 }
                 
                 auditLogService.logEvent("AUTH", "MFA_VERIFIED", "INFO", 
                     currentUser.getUsername(), currentUser.getUsername(), "MFA verification successful", 
                     null, "SUCCESS");
                 
-                return ResponseEntity.ok(ApiResponse.success("MFA verified and device trusted successfully"));
+                // Generate a fresh JWT token now that MFA is verified.
+                // This is the ONLY point where a token is issued when MFA was required.
+                String jwt;
+                try {
+                    jwt = tokenProvider.generateToken(authentication, sessionId);
+                } catch (Exception tokenEx) {
+                    log.error("Failed to generate JWT after MFA verification for user {}: {}", currentUser.getUsername(), tokenEx.getMessage());
+                    return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
+                            .body(ApiResponse.error("Verification succeeded but token generation failed. Please login again."));
+                }
+                
+                java.util.Map<String, Object> responseData = new java.util.LinkedHashMap<>();
+                responseData.put("verified", true);
+                responseData.put("token", jwt);
+                
+                return ResponseEntity.ok(ApiResponse.success("MFA verified and device trusted successfully", responseData));
             } else {
                 auditLogService.logEvent("AUTH", "MFA_FAILED", "WARNING", 
                     currentUser.getUsername(), currentUser.getUsername(), "MFA verification failed", 

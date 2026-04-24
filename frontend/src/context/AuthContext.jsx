@@ -65,6 +65,11 @@ export const AuthProvider = ({ children }) => {
     };
 
     const login = async (credentials) => {
+        // SECURITY: Clear any stale token BEFORE login attempt
+        // This prevents the JWT interceptor from auto-authenticating
+        // a previous session on the new login request
+        localStorage.removeItem('rbac_token');
+
         // Get user location before login
         const location = await getUserLocation();
 
@@ -76,15 +81,22 @@ export const AuthProvider = ({ children }) => {
         };
 
         const response = await authAPI.login(loginData);
-        // Store JWT token for cross-origin auth
-        if (response.data.success && response.data.data?.token) {
+
+        if (response.data.success && response.data.data?.mfaRequired) {
+            // MFA is required — do NOT store the JWT token yet.
+            // The user must complete MFA verification first.
+            // Store only the session ID for the MFA verification call.
+            const mfaSessionId = response.data.data.sessionId;
+            if (mfaSessionId && typeof mfaSessionId === 'string' && mfaSessionId.trim().length > 0) {
+                localStorage.setItem('rbac_mfa_session', mfaSessionId);
+            }
+            // Do NOT set user state — user is not fully authenticated
+        } else if (response.data.success && response.data.data?.token) {
+            // Fully authenticated — store token and set user
             localStorage.setItem('rbac_token', response.data.data.token);
-        }
-        // ONLY set user if MFA is not required. 
-        // If MFA is required, we wait until it's verified to set the user state.
-        if (response.data.success && !response.data.data?.mfaRequired) {
             setUser(response.data.data);
         }
+
         return response.data;
     };
 

@@ -50,7 +50,18 @@ public class AuthService {
     public AuthResult authenticateUser(LoginRequest loginRequest, HttpServletRequest request) {
         log.info("Authentication attempt for user: {}", loginRequest.getUsername());
 
-        // Authenticate using Spring Security (validates username/password first)
+        // ── SECURITY GATE 0: Invalidate any pre-existing session ──
+        // This prevents stale sessions/JWT tokens from leaking auth context
+        // on retry or refresh, which could bypass location/MFA checks.
+        HttpSession existingSession = request.getSession(false);
+        if (existingSession != null) {
+            log.info("Invalidating pre-existing session {} before new login attempt", existingSession.getId());
+            riskEvaluatorService.deactivateSession(existingSession.getId());
+            existingSession.invalidate();
+        }
+        SecurityContextHolder.clearContext();
+
+        // ── SECURITY GATE 1: Validate credentials (username/password) ──
         Authentication authentication = authenticationManager.authenticate(
                 new UsernamePasswordAuthenticationToken(
                         loginRequest.getUsername(),
@@ -58,13 +69,14 @@ public class AuthService {
 
         UserPrincipal userPrincipal = (UserPrincipal) authentication.getPrincipal();
 
-        // Check if user is admin - admins bypass location restriction
+        // ── SECURITY GATE 2: Location-based restriction (non-admin only) ──
+        // CRITICAL: This runs BEFORE any session or security context is created.
+        // If this fails, the user gets NOTHING — no session, no JWT, no cookie.
         boolean isAdmin = userPrincipal.getAuthorities().stream()
                 .map(GrantedAuthority::getAuthority)
                 .anyMatch(role -> role.equals("ROLE_ADMIN"));
 
         if (!isAdmin) {
-            // Non-admin: enforce location-based restriction
             if (locationService.isLocationRestrictionEnabled()) {
                 boolean locationAllowed = locationService.isLocationAllowed(
                         loginRequest.getLatitude(),
@@ -76,6 +88,7 @@ public class AuthService {
                             loginRequest.getUsername(),
                             loginRequest.getLatitude(),
                             loginRequest.getLongitude());
+                    // NO session, NO security context, NO JWT — hard deny
                     throw new RuntimeException("LOGIN_LOCATION_DENIED");
                 }
 
@@ -85,7 +98,7 @@ public class AuthService {
             log.info("Admin user {} - location restriction bypassed", loginRequest.getUsername());
         }
 
-        // Set authentication in security context
+        // ── ALL PRE-SESSION GATES PASSED — now create the session ──
         SecurityContextHolder.getContext().setAuthentication(authentication);
 
         // Get or create HTTP session
