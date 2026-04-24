@@ -84,15 +84,42 @@ public class AuthService {
                         userPrincipal.getId());
 
                 if (!locationAllowed) {
-                    log.warn("Login denied for user {} - outside allowed location zone. Lat: {}, Lng: {}",
+                    boolean coordsProvided = loginRequest.getLatitude() != null && loginRequest.getLongitude() != null;
+                    String errorCode = coordsProvided ? "LOGIN_LOCATION_DENIED" : "LOGIN_LOCATION_REQUIRED";
+                    log.warn("Login denied for user {} - {}. Lat: {}, Lng: {}",
                             loginRequest.getUsername(),
+                            coordsProvided ? "outside allowed location zone" : "location permission denied/unavailable",
                             loginRequest.getLatitude(),
                             loginRequest.getLongitude());
                     // NO session, NO security context, NO JWT — hard deny
-                    throw new RuntimeException("LOGIN_LOCATION_DENIED");
+                    throw new RuntimeException(errorCode);
                 }
 
                 log.info("Location validation passed for user: {}", loginRequest.getUsername());
+
+                // ── SECURITY GATE 3: IP-based cross-verification (anti-spoofing) ──
+                // Compares browser GPS against IP geolocation to detect:
+                //   - GPS spoofing via Chrome DevTools or browser extensions
+                //   - VPN/Proxy usage to mask real location
+                // This gate runs ONLY if GPS check passed (Gate 2).
+                String clientIp = getClientIpAddress(request);
+                LocationService.LocationVerificationResult verification =
+                        locationService.crossVerifyLocation(
+                                loginRequest.getLatitude(),
+                                loginRequest.getLongitude(),
+                                clientIp);
+
+                if (verification.shouldBlock()) {
+                    log.warn("🚨 LOGIN BLOCKED by IP cross-verification for user {}: {} [Risk: {}]",
+                            loginRequest.getUsername(), verification.getDetails(), verification.getRiskLevel());
+                    throw new RuntimeException("LOGIN_LOCATION_SUSPICIOUS");
+                }
+
+                if ("MEDIUM".equals(verification.getRiskLevel())) {
+                    log.warn("⚠️ Moderate location discrepancy for user {} — allowing login but flagging: {}",
+                            loginRequest.getUsername(), verification.getDetails());
+                    // Flag it but allow — will show up in audit logs and risk dashboard
+                }
             }
         } else {
             log.info("Admin user {} - location restriction bypassed", loginRequest.getUsername());

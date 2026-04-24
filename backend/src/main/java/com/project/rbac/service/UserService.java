@@ -269,6 +269,15 @@ public class UserService {
         user.setLocationExempt(false); // Actively restricted now
         User saved = userRepository.save(user);
 
+        // SECURITY: Invalidate all active sessions for this user.
+        // They must re-login so the new location restriction is enforced.
+        int activeSessions = userSessionRepository.countActiveSessionsByUserId(userId);
+        if (activeSessions > 0) {
+            userSessionRepository.deactivateAllSessionsByUserId(userId);
+            log.warn("Invalidated {} active session(s) for user '{}' due to location policy change → '{}'",
+                    activeSessions, user.getUsername(), location.getLocationName());
+        }
+
         log.info("Assigned location '{}' to user '{}' (locationExempt=false)", location.getLocationName(), user.getUsername());
 
         return convertToUserResponse(saved);

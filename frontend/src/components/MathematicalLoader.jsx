@@ -92,15 +92,6 @@ const MathematicalLoader = ({ text = "Loading, please wait", fullScreen = true, 
                             </motion.div>
                         </AnimatePresence>
                     </div>
-
-                    {/* Indeterminate Progress Indicator */}
-                    <div className="w-56 h-1.5 bg-slate-700/50 rounded-full mt-6 overflow-hidden">
-                        <motion.div 
-                            className="h-full w-1/3 bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 rounded-full"
-                            animate={{ x: ["-100%", "300%"] }}
-                            transition={{ duration: 1.5, repeat: Infinity, ease: "easeInOut" }}
-                        />
-                    </div>
                 </motion.div>
             </div>
         </div>

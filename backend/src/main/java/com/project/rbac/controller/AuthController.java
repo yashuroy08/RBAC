@@ -162,6 +162,16 @@ public class AuthController {
                 log.warn("Login denied for user {}: Outside geofence", loginRequest.getUsername());
                 return ResponseEntity.status(HttpStatus.FORBIDDEN).body(ApiResponse.error("Access denied: You are outside the authorized login zone."));
             }
+            if ("LOGIN_LOCATION_REQUIRED".equals(e.getMessage())) {
+                log.warn("Login denied for user {}: Location permission not granted", loginRequest.getUsername());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Location access is required. Please allow location permission in your browser and try again."));
+            }
+            if ("LOGIN_LOCATION_SUSPICIOUS".equals(e.getMessage())) {
+                log.warn("Login denied for user {}: IP cross-verification failed (VPN/spoofing detected)", loginRequest.getUsername());
+                return ResponseEntity.status(HttpStatus.FORBIDDEN).body(
+                    ApiResponse.error("Access denied: Suspicious network activity detected. VPN, proxy, or location spoofing is not permitted."));
+            }
             log.error("SYSTEM ERROR during login for user {}: {}", loginRequest.getUsername(), e.getMessage(), e);
             throw e; // Bubble up to GlobalExceptionHandler for 500
         } catch (Exception e) {

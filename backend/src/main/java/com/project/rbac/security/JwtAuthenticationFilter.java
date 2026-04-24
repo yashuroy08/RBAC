@@ -50,7 +50,15 @@ public class JwtAuthenticationFilter extends OncePerRequestFilter {
 
                     SecurityContextHolder.getContext().setAuthentication(authentication);
                 } else {
-                    log.warn("Blocked request with valid JWT but inactive session: {}", sessionId);
+                    // Session was deactivated (e.g. admin changed location policy)
+                    // Return 401 immediately with a descriptive reason
+                    log.warn("Blocked request with valid JWT but inactive session for user ID: {}", userId);
+                    response.setStatus(401);
+                    response.setContentType("application/json");
+                    response.getWriter().write(
+                        "{\"success\":false,\"message\":\"Your session was terminated due to a security policy change. Please login again.\"}"
+                    );
+                    return; // Don't continue the filter chain
                 }
             }
         } catch (Exception ex) {

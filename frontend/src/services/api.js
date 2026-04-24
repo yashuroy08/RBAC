@@ -31,7 +31,10 @@ api.interceptors.response.use(
         // This prevents infinite refresh loops
         if (error.response?.status === 401 && window.location.pathname !== '/login') {
             localStorage.removeItem('rbac_token');
-            window.location.href = '/login';
+            // Pass the reason to the login page so the user knows why they were logged out
+            const reason = error.response?.data?.message || 'Your session has expired. Please login again.';
+            const encoded = encodeURIComponent(reason);
+            window.location.href = `/login?session_expired=true&reason=${encoded}`;
         }
         return Promise.reject(error);
     }

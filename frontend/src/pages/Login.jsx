@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useNavigate, Link, useSearchParams } from 'react-router-dom';
 import { useAuth } from '../context/AuthContext';
 import { ShieldCheck, AlertCircle, KeyRound, User, TerminalSquare, Lock, MapPin, Eye, EyeOff } from 'lucide-react';
 import { motion } from 'framer-motion';
@@ -7,13 +7,27 @@ import MfaModal from '../components/MfaModal';
 
 const Login = () => {
     const navigate = useNavigate();
+    const [searchParams, setSearchParams] = useSearchParams();
     const { login, checkAuth } = useAuth();
     const [formData, setFormData] = useState({ username: '', password: '' });
     const [error, setError] = useState('');
     const [locationError, setLocationError] = useState(false);
+    const [sessionExpiredMsg, setSessionExpiredMsg] = useState('');
     const [loading, setLoading] = useState(false);
     const [showPassword, setShowPassword] = useState(false);
     const [mfaData, setMfaData] = useState({ required: false, sessionId: '', message: '' });
+
+    // Show session expiration message when redirected from a 401
+    useEffect(() => {
+        if (searchParams.get('session_expired') === 'true') {
+            const reason = searchParams.get('reason') || 'Your session has expired. Please login again.';
+            setSessionExpiredMsg(reason);
+            // Clean the URL so the message doesn't persist on manual refresh
+            searchParams.delete('session_expired');
+            searchParams.delete('reason');
+            setSearchParams(searchParams, { replace: true });
+        }
+    }, []);
 
     const handleChange = (e) => {
         setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -125,6 +139,24 @@ const Login = () => {
 
                         {/* Form Body */}
                         <div className="p-6 sm:p-8">
+                            {sessionExpiredMsg && (
+                                <motion.div
+                                    initial={{ opacity: 0, y: -8 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    className="p-3 mb-6 flex items-start gap-2.5 text-xs font-mono rounded-sm"
+                                    style={{
+                                        background: 'var(--color-warn-bg)',
+                                        color: 'var(--color-warn-text)',
+                                        border: '1px solid var(--color-warn)'
+                                    }}
+                                >
+                                    <ShieldCheck size={14} className="mt-0.5 shrink-0" />
+                                    <div className="flex flex-col gap-1">
+                                        <span className="font-bold">Session Terminated</span>
+                                        <span className="opacity-80">{sessionExpiredMsg}</span>
+                                    </div>
+                                </motion.div>
+                            )}
                             {error && (
                                 <motion.div
                                     initial={{ opacity: 0, x: -8 }}
