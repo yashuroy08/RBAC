@@ -32,5 +32,6 @@ public class UserResponse {
     private boolean mfaEnabled;    // true when adaptive MFA system covers this user
     private Long assignedLocationId;
     private String assignedLocationName;
+    private boolean locationExempt;    // true = user bypasses all location checks
     private LocalDateTime createdAt;
 }

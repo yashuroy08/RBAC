@@ -8,6 +8,7 @@ import com.project.rbac.repository.UserRepository;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
 import java.util.Optional;
@@ -52,24 +53,35 @@ public class LocationService {
             return true;
         }
 
-        // 1. Check user-specific assigned location first
+        // 0. Check if user is location-exempt (no restriction applies)
         if (userId != null) {
             Optional<User> userOpt = userRepository.findById(userId);
-            if (userOpt.isPresent() && userOpt.get().getAssignedLocation() != null) {
-                LocationConfig userConfig = userOpt.get().getAssignedLocation();
-                if (userConfig.isEnabled()) {
-                    double distance = calculateDistance(latitude, longitude,
-                            userConfig.getCenterLatitude(), userConfig.getCenterLongitude());
-                    log.info("User-specific location check: User {} at ({}, {}), Zone '{}' at ({}, {}), Distance: {} km, Radius: {} km",
-                            userId, latitude, longitude, userConfig.getLocationName(),
-                            userConfig.getCenterLatitude(), userConfig.getCenterLongitude(),
-                            String.format("%.2f", distance), userConfig.getRadiusKm());
-                    boolean allowed = distance <= userConfig.getRadiusKm();
-                    if (!allowed) {
-                        log.warn("Login denied for user {}: {} km from assigned zone '{}' (max {} km)",
-                                userId, String.format("%.2f", distance), userConfig.getLocationName(), userConfig.getRadiusKm());
+            if (userOpt.isPresent()) {
+                User user = userOpt.get();
+
+                // Exempt users bypass ALL location checks (global access)
+                if (user.isLocationExempt()) {
+                    log.info("User {} is location-exempt — allowing global access", userId);
+                    return true;
+                }
+
+                // 1. Check user-specific assigned location
+                if (user.getAssignedLocation() != null) {
+                    LocationConfig userConfig = user.getAssignedLocation();
+                    if (userConfig.isEnabled()) {
+                        double distance = calculateDistance(latitude, longitude,
+                                userConfig.getCenterLatitude(), userConfig.getCenterLongitude());
+                        log.info("User-specific location check: User {} at ({}, {}), Zone '{}' at ({}, {}), Distance: {} km, Radius: {} km",
+                                userId, latitude, longitude, userConfig.getLocationName(),
+                                userConfig.getCenterLatitude(), userConfig.getCenterLongitude(),
+                                String.format("%.2f", distance), userConfig.getRadiusKm());
+                        boolean allowed = distance <= userConfig.getRadiusKm();
+                        if (!allowed) {
+                            log.warn("Login denied for user {}: {} km from assigned zone '{}' (max {} km)",
+                                    userId, String.format("%.2f", distance), userConfig.getLocationName(), userConfig.getRadiusKm());
+                        }
+                        return allowed;
                     }
-                    return allowed;
                 }
             }
         }
@@ -170,11 +182,22 @@ public class LocationService {
     }
 
     /**
-     * Delete a location configuration
+     * Delete a location configuration.
+     * Cascade-safe: unassigns all users referencing this config first.
      */
+    @Transactional
     public void deleteConfig(Long configId) {
+        // Unassign from all users who reference this location to avoid FK violation
+        List<User> affectedUsers = userRepository.findByAssignedLocationId(configId);
+        for (User u : affectedUsers) {
+            u.setAssignedLocation(null);
+            u.setLocationExempt(true); // Revert to global access
+            userRepository.save(u);
+            log.info("Auto-unassigned location from user '{}' before deletion", u.getUsername());
+        }
+
         locationConfigRepository.deleteById(configId);
-        log.info("Location config deleted: {}", configId);
+        log.info("Location config deleted: {} ({} user(s) unassigned)", configId, affectedUsers.size());
     }
 
     /**

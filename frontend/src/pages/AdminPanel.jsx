@@ -769,8 +769,18 @@ const AdminPanel = () => {
                                                                 </button>
                                                             </div>
                                                         ) : (
-                                                            <div className="text-[9px] text-text-muted italic bg-bg-elevated/50 p-3 rounded-lg border border-border-subtle border-dashed">
-                                                                User is utilizing Global Policy (no specialized zone assigned).
+                                                            <div className="text-[9px] text-text-muted bg-bg-elevated/50 p-3 rounded-lg border border-border-subtle border-dashed">
+                                                                {selectedUser.locationExempt ? (
+                                                                    <span className="flex items-center gap-1.5">
+                                                                        <span className="inline-block w-1.5 h-1.5 rounded-full bg-safe"></span>
+                                                                        <span className="font-bold text-safe-text">Global Access (Exempt)</span> — No geographic restriction applied.
+                                                                    </span>
+                                                                ) : (
+                                                                    <span className="flex items-center gap-1.5 text-warn">
+                                                                        <AlertTriangle size={10} />
+                                                                        <span className="font-bold">Orphaned State</span> — No zone assigned but user is subject to global policy checks.
+                                                                    </span>
+                                                                )}
                                                             </div>
                                                         )}
                                                         

@@ -3,6 +3,8 @@ package com.project.rbac.repository;
 import com.project.rbac.entity.User;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
+
+import java.util.List;
 import org.springframework.data.repository.query.Param;
 import org.springframework.stereotype.Repository;
 
@@ -65,4 +67,10 @@ public interface UserRepository extends JpaRepository<User, Long> {
      */
     @Query("SELECT u FROM User u WHERE u.publicId IS NULL OR u.publicId = ''")
     java.util.List<User> findAllByPublicIdIsNullOrEmpty();
+
+    /**
+     * Find all users assigned to a specific location config.
+     * Used for cascade-safe deletion of location configs.
+     */
+    List<User> findByAssignedLocationId(Long locationId);
 }

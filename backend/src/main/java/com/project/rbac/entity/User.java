@@ -94,6 +94,14 @@ public class User {
     @JoinColumn(name = "assigned_location_id")
     private LocationConfig assignedLocation;
 
+    /**
+     * When true, the user bypasses ALL location checks (global access).
+     * New users default to true (no restriction).
+     * Set to false when a location is assigned, true when it is removed.
+     */
+    @Column(name = "location_exempt", nullable = false)
+    private boolean locationExempt = true;
+
     @PrePersist
     protected void onCreate() {
         if (publicId == null || publicId.isBlank()) {

@@ -249,6 +249,8 @@ public class UserService {
             response.setAssignedLocationName(user.getAssignedLocation().getLocationName());
         }
 
+        response.setLocationExempt(user.isLocationExempt());
+
         return response;
     }
 
@@ -264,9 +266,10 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("Location configuration not found"));
 
         user.setAssignedLocation(location);
+        user.setLocationExempt(false); // Actively restricted now
         User saved = userRepository.save(user);
 
-        log.info("Assigned location '{}' to user '{}'", location.getLocationName(), user.getUsername());
+        log.info("Assigned location '{}' to user '{}' (locationExempt=false)", location.getLocationName(), user.getUsername());
 
         return convertToUserResponse(saved);
     }
@@ -280,9 +283,10 @@ public class UserService {
                 .orElseThrow(() -> new RuntimeException("User not found"));
 
         user.setAssignedLocation(null);
+        user.setLocationExempt(true); // Revert to global access (no restriction)
         User saved = userRepository.save(user);
 
-        log.info("Removed assigned location from user '{}'", user.getUsername());
+        log.info("Removed assigned location from user '{}' (locationExempt=true)", user.getUsername());
 
         return convertToUserResponse(saved);
     }
