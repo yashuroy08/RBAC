@@ -172,7 +172,7 @@ const Dashboard = () => {
     const formatDate = (dateStr) => {
         if (!dateStr) return '—';
         const d = new Date(dateStr);
-        return d.toLocaleString('en-US', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+        return d.toLocaleString('en-IN', { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' });
     };
 
     const getDeviceIcon = (deviceName) => {
@@ -289,7 +289,7 @@ const Dashboard = () => {
                                                         <div className="flex-1 min-w-0">
                                                             <p className="text-[11px] text-canvas leading-snug">{notif.message}</p>
                                                             <p className="text-[9px] text-text-muted mt-0.5 font-mono">
-                                                                {notif.time.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit' })}
+                                                                {notif.time.toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', second: '2-digit', timeZone: 'Asia/Kolkata' })}
                                                             </p>
                                                         </div>
                                                     </div>
@@ -666,7 +666,7 @@ const LiveActivityFeed = ({ events = [], getScoreColor, formatDate }) => {
                                             </span>
                                             <span className="text-[9px] text-text-muted font-mono whitespace-nowrap">
                                                 {event.eventTime
-                                                    ? new Date(event.eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+                                                    ? new Date(event.eventTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' })
                                                     : '—'}
                                             </span>
                                         </div>

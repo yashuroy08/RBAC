@@ -669,7 +669,7 @@ const AdminPanel = () => {
                                                     {selectedUser.createdAt && (
                                                         <div className="flex items-center gap-2">
                                                             <span className="text-[8px] uppercase font-bold text-text-muted tracking-widest w-10 shrink-0">Joined</span>
-                                                            <span className="text-[9px] text-text-muted">{new Date(selectedUser.createdAt).toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' })}</span>
+                                                            <span className="text-[9px] text-text-muted">{new Date(selectedUser.createdAt).toLocaleDateString('en-IN', { year: 'numeric', month: 'short', day: 'numeric', timeZone: 'Asia/Kolkata' })}</span>
                                                         </div>
                                                     )}
                                                     <div className="flex items-center gap-2">
@@ -717,7 +717,7 @@ const AdminPanel = () => {
                                                                             <Monitor size={10} className="text-text-muted shrink-0" />
                                                                             <div className="truncate">
                                                                                 <p className="text-canvas font-medium truncate">{session.deviceName || 'Unknown Device'}</p>
-                                                                                <p className="text-text-muted opacity-70 font-mono tracking-tighter">{session.ipAddress} • {new Date(session.loginTime).toLocaleTimeString([], {hour:'2-digit', minute:'2-digit'})}</p>
+                                                                                <p className="text-text-muted opacity-70 font-mono tracking-tighter">{session.ipAddress} • {new Date(session.loginTime).toLocaleTimeString('en-IN', {hour:'2-digit', minute:'2-digit', timeZone: 'Asia/Kolkata'})}</p>
                                                                             </div>
                                                                         </div>
                                                                         <div className="h-1.5 w-1.5 rounded-full bg-safe animate-pulse shrink-0"></div>
@@ -1089,7 +1089,7 @@ const AdminPanel = () => {
                                                 <tr key={log.id} className="transition-all hover:bg-white/[0.03] animate-in fade-in"
                                                     style={{ borderBottom: '1px solid var(--color-border-subtle)', animationDelay: `${i * 30}ms` }}>
                                                     <td className="py-3 px-4 text-[10px] font-mono text-text-muted whitespace-nowrap">
-                                                        {new Date(log.timestamp).toLocaleString()}
+                                                        {new Date(log.timestamp).toLocaleString('en-IN', { timeZone: 'Asia/Kolkata' })}
                                                     </td>
                                                     <td className="py-3 px-4">
                                                         <div className="flex flex-col gap-0.5">

@@ -63,7 +63,7 @@ export const RiskTimeline = ({ riskEvents = [], riskHistory = [], currentScore =
         if (riskEvents && riskEvents.length > 0) {
             const sorted = [...riskEvents].sort((a, b) => new Date(a.eventTime) - new Date(b.eventTime));
             return sorted.map(event => ({
-                time: new Date(event.eventTime).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+                time: new Date(event.eventTime).toLocaleTimeString('en-IN', { hour: '2-digit', minute: '2-digit', timeZone: 'Asia/Kolkata' }),
                 score: Math.round(event.riskScore || 0),
                 threshold: 70,
             }));
